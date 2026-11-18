@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
 
 from ..components.empty_state import EmptyState
 from ..components.primitives import (
-    btn, chip_tag, eyebrow, icon_btn, label_caps, mk_label, styled_bar,
+    btn, chip_tag, icon_btn, label_caps, mk_label, muted_label, styled_bar,
 )
 from ..components.queue_row import QueueRow
 from ..components.stack_list import StackList
@@ -109,7 +109,7 @@ class DownloadsView(QWidget):
         head.setSpacing(10)
         tl = QVBoxLayout()
         tl.setSpacing(2)
-        tl.addWidget(eyebrow("Transfer console"))
+        tl.addWidget(muted_label("transfer console"))
         tl.addWidget(mk_label("Download Center", "display"))
         tl.addWidget(mk_label(
             "One sequential pipeline — watch progress, reorder the queue and read the raw log.",

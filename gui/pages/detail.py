@@ -3,7 +3,7 @@ import os
 from typing import Any, Dict, List, Optional
 
 from PyQt6.QtCore import QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QDesktopServices, QPixmap
 from PyQt6.QtWidgets import (
     QApplication, QButtonGroup, QComboBox, QDialog, QFileDialog, QFrame,
     QHBoxLayout, QLabel, QLineEdit, QPushButton, QScrollArea, QSizePolicy,
@@ -14,7 +14,7 @@ import db
 from ..components.empty_state import EmptyState
 from ..components.episode_row import EpisodeRow
 from ..components.primitives import (
-    btn, chip_tag, eyebrow, icon_btn, label_caps, mk_label, styled_bar, vline,
+    btn, chip_tag, icon_btn, label_caps, mk_label, muted_label, styled_bar, vline,
 )
 from ..components.stack_list import StackList
 from ..components.thumb import PosterThumb
@@ -36,6 +36,8 @@ class SeriesDetailView(QWidget):
     sync_series = pyqtSignal(int)
     episode_changed = pyqtSignal(int)                      # series_id → refresh
     toast = pyqtSignal(str, bool)
+    # str — absolute path of the downloaded episode file to open
+    play_requested = pyqtSignal(str)
 
     TABS = [("pending", "Queued"), ("downloaded", "Downloaded"), ("failed", "Failed")]
 
@@ -180,7 +182,7 @@ class SeriesDetailView(QWidget):
         reg_head.setSpacing(8)
         title_col = QVBoxLayout()
         title_col.setSpacing(0)
-        title_col.addWidget(eyebrow("Episode registry"))
+        title_col.addWidget(muted_label("episode registry"))
         self.reg_count = mk_label("", "small")
         title_col.addWidget(self.reg_count)
         reg_head.addLayout(title_col)
@@ -355,6 +357,7 @@ class SeriesDetailView(QWidget):
             last.edit_ep.connect(self._edit_episode)
             last.del_ep.connect(self._delete_episode)
             last.retry.connect(self._download_one)
+            last.play.connect(self._on_episode_play)
         self.rows_host.set_items(rows)
         self.empty.setVisible(not rows)
 
@@ -362,6 +365,38 @@ class SeriesDetailView(QWidget):
     def _copy(self, url: str) -> None:
         QApplication.clipboard().setText(url)
         self.toast.emit("URL copied to clipboard.", True)
+
+    def _on_episode_play(self, save_dir: str) -> None:
+        """Find the downloaded media file for an episode and open it."""
+        import os
+        ep = None
+        for r in self.rows_host._items or []:
+            if getattr(r, 'ep', None) and str(r.ep.get("save_dir") or "") == save_dir:
+                ep = r.ep
+                break
+        if ep is None:
+            self.toast.emit("Episode not found.", False)
+            return
+        title = ep.get("title") or ""
+        norm = title.lower().replace(" ", "-")
+        try:
+            files = sorted(os.listdir(save_dir))
+        except OSError:
+            self.toast.emit("Cannot access episode folder.", False)
+            return
+        # find best match by title stem
+        for f in files:
+            bn = f.lower()
+            if norm[:8] in bn and not bn.endswith(".txt") and not bn.endswith(".nfo"):
+                self.play_requested.emit(os.path.join(save_dir, f))
+                return
+        # fallback: first media file
+        for f in files:
+            ext = os.path.splitext(f)[1].lower()
+            if ext in (".mp4", ".mkv", ".avi", ".mov", ".webm", ".m4v"):
+                self.play_requested.emit(os.path.join(save_dir, f))
+                return
+        self.toast.emit("No media file found — re-download the episode.", False)
 
     def _download_one(self, ep: Dict[str, Any]) -> None:
         self.download_urls_requested.emit(self.series_id,

@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
-from ..components.primitives import btn, eyebrow, hline, label_caps, mk_label
+from ..components.primitives import btn, hline, label_caps, mk_label, muted_label
 from ..theme import F_MONO, T_MUTED, T_ROSE2, app_stylesheet
 
 
@@ -38,7 +38,7 @@ class AddVideoDialog(QDialog):
 
         head = QVBoxLayout()
         head.setSpacing(2)
-        head.addWidget(eyebrow("Save a discovery"))
+        head.addWidget(muted_label("Save a discovery"))
         head.addWidget(mk_label("Add to Library", "display"))
         head.addWidget(mk_label(
             "Attach this video as an episode, or start a new series from it.",

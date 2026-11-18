@@ -94,6 +94,12 @@ QLabel#eyebrow {{
     font-size: 10px;
     font-weight: 600;
 }}
+QLabel#mutedLabel {{
+    color: {T_MUTED};
+    font-family: "{F_MONO}";
+    font-size: 10px;
+    font-weight: 600;
+}}
 QLabel#display {{
     color: {T_TEXT};
     font-family: "{F_DISPLAY}";
@@ -350,7 +356,11 @@ QPushButton#navBtn:hover {{
 QPushButton#navBtn:checked {{
     background-color: {T_PRIMARY_SOFT};
     color: {T_PRIMARY};
-    border: 1px solid {T_PRIMARY_LINE};
+    border-left: 3px solid {T_PRIMARY};
+    border-right: 1px solid transparent;
+    border-top: 1px solid transparent;
+    border-bottom: 1px solid transparent;
+    padding-left: 9px;
     font-weight: 700;
 }}
 QPushButton#navAction {{

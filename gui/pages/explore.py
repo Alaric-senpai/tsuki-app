@@ -15,9 +15,10 @@ from PyQt6.QtWidgets import (
 
 import app_config
 import youtube_api
-from ..components.primitives import btn, chip_tag, eyebrow, mk_label
+from ..components.primitives import btn, chip_tag, mk_label, muted_label
 from ..components.video_card import VideoCard
 from ..components.video_grid import VideoGrid
+from ..components.video_player import VideoPlayerPanel
 from ..icons import icon
 from ..infrastructure.thumbnails import ThumbnailStore
 from ..theme import (
@@ -26,33 +27,33 @@ from ..theme import (
     T_ROSE_LINE, T_ROSE_SOFT, T_ROSE2, T_SEC, T_TEXT,
 )
 
-SEARCH_STYLE = """
-QLineEdit {
-    background: #0f0f0f;
-    border: 1px solid #303030;
+SEARCH_STYLE = f"""
+QLineEdit {{
+    background: {T_RAIL_DEEP};
+    border: 1px solid {T_LINE_STRONG};
     border-radius: 20px;
     padding: 8px 16px;
-    color: #f1f1f1;
+    color: {T_TEXT};
     font-size: 13px;
-    selection-background-color: #3ea6ff;
-    selection-color: #0f0f0f;
-}
-QLineEdit:focus { border-color: #3ea6ff; }
+    selection-background-color: {T_PRIMARY};
+    selection-color: {T_CANVAS};
+}}
+QLineEdit:focus {{ border-color: {T_PRIMARY}; }}
 """
 
-SEARCH_BUTTON_STYLE = """
-QPushButton {
-    background: #272727;
-    color: #f1f1f1;
-    border: 1px solid #303030;
+SEARCH_BUTTON_STYLE = f"""
+QPushButton {{
+    background: {T_CARD_SOFT};
+    color: {T_TEXT};
+    border: 1px solid {T_LINE_STRONG};
     border-radius: 20px;
     padding: 0 18px;
     font-size: 12px;
     font-weight: 700;
-}
-QPushButton:hover { background: #3f3f3f; }
-QPushButton:pressed { background: #4a4a4a; }
-QPushButton:disabled { color: #717171; background: #1f1f1f; }
+}}
+QPushButton:hover {{ background: {T_HOVER}; }}
+QPushButton:pressed {{ background: {T_CARD_HI}; }}
+QPushButton:disabled {{ color: {T_FAINT}; background: {T_CANVAS_SOFT}; }}
 """
 
 class ExploreWorker(QThread):
@@ -143,10 +144,10 @@ class StatePanel(QWidget):
 
 
 class ExploreView(QWidget):
+    play_requested = pyqtSignal()
     connect_requested = pyqtSignal()
     add_requested = pyqtSignal(dict)
     download_requested = pyqtSignal(dict)
-    open_requested = pyqtSignal(dict)
 
     def __init__(self, thumbs: ThumbnailStore, parent: Optional[QWidget] = None):
         super().__init__(parent)
@@ -181,7 +182,7 @@ class ExploreView(QWidget):
         head.setSpacing(10)
         tl = QVBoxLayout()
         tl.setSpacing(2)
-        self.eyebrow_label = eyebrow("YOUTUBE · DONGHUA")
+        self.eyebrow_label = muted_label("youtube · donghua")
         tl.addWidget(self.eyebrow_label)
         tl.addWidget(mk_label("Explore", "display"))
         self.subtitle_label = mk_label(
@@ -310,6 +311,13 @@ class ExploreView(QWidget):
         self.grid = VideoGrid()
         content.addWidget(self.grid)
 
+        # ---- in-app video player (overlays the grid when opened)
+        self.player = VideoPlayerPanel()
+        self.player.setFixedHeight(0)
+        self.player.closed.connect(self._on_player_closed)
+        self.player.open_in_browser.connect(self._open_in_browser)
+        content.addWidget(self.player)
+
         # ---- status line
         self.status_line = QLabel("")
         self.status_line.setStyleSheet(
@@ -400,7 +408,7 @@ class ExploreView(QWidget):
 
     def _enter_search_mode(self, query: str, *, searching: bool) -> None:
         self.clear_btn.show()
-        self.eyebrow_label.setText("YOUTUBE · SEARCH")
+        self.eyebrow_label.setText("youtube · search")
         self.subtitle_label.setText(
             "Explicit YouTube search — results are cached locally to save "
             "quota.")
@@ -452,13 +460,39 @@ class ExploreView(QWidget):
             card = VideoCard(video, self.thumbs)
             card.add_requested.connect(self.add_requested)
             card.download_requested.connect(self.download_requested)
-            card.open_requested.connect(self.open_requested)
+            card.open_requested.connect(self._play_video)
             cards.append(card)
         return cards
 
     def _on_thumb_loaded(self, key: str, pix) -> None:
         for card in self._cards:
             card.update_asset(key, pix)
+
+    # ---- video player --------------------------------------------------------
+    def _play_video(self, video: Dict[str, Any]) -> None:
+        """Stream a video from the explore grid using the in-app player."""
+        video = dict(video or {})
+        source = str(video.get("source") or "").strip().lower()
+        video_id = str(video.get("id") or "").strip()
+        title = str(video.get("title") or "")
+        url = str(video.get("url") or "").strip()
+
+        if source == "youtube" and video_id:
+            page_url = f"https://www.youtube.com/watch?v={video_id}"
+        elif url:
+            page_url = url
+        else:
+            return
+
+        self.player.play_url(page_url, title)
+
+    def _on_player_closed(self) -> None:
+        """Called when the player panel is closed by the user."""
+        pass  # the panel slides out automatically
+
+    def _open_in_browser(self, url: str) -> None:
+        if url:
+            QDesktopServices.openUrl(QUrl(url))
 
     # ---- display state ----------------------------------------------------
     def _show_idle_state(self) -> None:
@@ -471,7 +505,7 @@ class ExploreView(QWidget):
         self._update_search_state()
         self._set_api_mode("idle")
         self.state_panel.show()
-        self.eyebrow_label.setText("YOUTUBE · DONGHUA")
+        self.eyebrow_label.setText("youtube · donghua")
         self.subtitle_label.setText(
             "Search YouTube for a donghua, studio, trailer or episode, then "
             "add it to your library.")

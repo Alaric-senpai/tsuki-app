@@ -10,7 +10,8 @@ from PyQt6.QtWidgets import (
 import db
 from ..icons import app_icon, icon
 from ..theme import (
-    T_EMERALD2, T_MUTED, T_ON_PRIMARY, T_PRIMARY, T_ROSE2, T_SEC,
+    F_MONO, T_CANVAS_SOFT, T_EMERALD2, T_LINE, T_MUTED, T_ON_PRIMARY,
+    T_PRIMARY, T_ROSE2, T_SEC,
 )
 from .primitives import hline
 
@@ -55,12 +56,12 @@ class Sidebar(QWidget):
         btxt.setSpacing(0)
         name = QLabel("Donghua Stream")
         name.setStyleSheet(
-            "font-family: 'Montserrat'; font-size: 14px; font-weight: 700;"
+            f"font-family: '{F_DISPLAY}'; font-size: 14px; font-weight: 700;"
         )
         btxt.addWidget(name)
-        sub = QLabel("DESKTOP HUB")
+        sub = QLabel("desktop hub")
         sub.setStyleSheet(
-            f"color: {T_MUTED}; font-family: 'Fira Code'; font-size: 9px;"
+            f"color: {T_MUTED}; font-family: '{F_MONO}'; font-size: 9px;"
         )
         self._ver_sub = sub
         btxt.addWidget(sub)
@@ -71,9 +72,9 @@ class Sidebar(QWidget):
         outer.addLayout(brand)
         outer.addSpacing(18)
 
-        caps = QLabel("BROWSE")
+        caps = QLabel("browse")
         caps.setStyleSheet(
-            f"color: {T_MUTED}; font-family: 'Fira Code'; font-size: 9px; font-weight: 600;"
+            f"color: {T_MUTED}; font-family: '{F_MONO}'; font-size: 9px; font-weight: 600;"
         )
         outer.addWidget(caps)
         outer.addSpacing(2)

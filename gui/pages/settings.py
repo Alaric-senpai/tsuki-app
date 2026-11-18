@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
 )
 
 import app_config
-from ..components.primitives import btn, eyebrow, hline, label_caps, mk_label
+from ..components.primitives import btn, hline, label_caps, mk_label, muted_label
 from ..components.storage_card import StorageCard
 from ..dialogs.credentials import REGIONS, CredentialsDialog
 from ..icons import icon
@@ -81,7 +81,7 @@ class SettingsView(QWidget):
 
         head = QVBoxLayout()
         head.setSpacing(2)
-        head.addWidget(eyebrow("Preferences"))
+        head.addWidget(muted_label("Preferences"))
         head.addWidget(mk_label("Settings & Storage", "display"))
         head.addWidget(mk_label(
             "Choose where episodes live, how they are fetched and which engine the app talks to.",

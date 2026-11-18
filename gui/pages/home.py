@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
 from ..components.empty_state import EmptyState
 from ..components.hero import HeroSpotlight
 from ..components.poster_grid import PosterGrid
-from ..components.primitives import btn, eyebrow, mk_label
+from ..components.primitives import btn, mk_label, muted_label
 from ..components.series_cards import CompactSeriesRow, SeriesCard
 from ..components.stack_list import StackList
 from ..components.telemetry import TelemetryStrip
@@ -62,7 +62,7 @@ class HomeView(QWidget):
         head.setSpacing(10)
         tl = QVBoxLayout()
         tl.setSpacing(2)
-        tl.addWidget(eyebrow("Your collection"))
+        tl.addWidget(muted_label("your collection"))
         tl.addWidget(mk_label("Donghua Library", "display"))
         tl.addWidget(mk_label(
             "A living catalog of every series — spotlighted like a streaming service.",

@@ -9,24 +9,24 @@ from typing import Any, Dict, List, Optional
 from PyQt6.QtCore import QSize, Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (
     QCheckBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QMenu,
-    QScrollArea, QSizePolicy, QVBoxLayout, QWidget,
+    QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget,
 )
+from PyQt6.QtGui import QDesktopServices
 
 import db
 import sources
 from media_ids import extract_video_id
 from ..components.primitives import (
-    btn, chip_tag, eyebrow, mk_label,
+    btn, chip_tag, mk_label, muted_label,
 )
-from ..components.source_card import SourceSeriesCard
 from ..components.stack_list import StackList
 from ..components.thumb import PosterThumb
 from ..dialogs.source_episodes import prompt_source_episodes
 from ..icons import icon
 from ..infrastructure.thumbnails import ThumbnailStore
 from ..theme import (
-    T_AMBER2, T_AMBER_LINE, T_AMBER_SOFT, T_MUTED, T_ON_PRIMARY, T_PRIMARY,
-    T_PRIMARY_LINE, T_PRIMARY_SOFT, T_TEXT,
+    F_MONO, T_AMBER2, T_AMBER_LINE, T_AMBER_SOFT, T_CARD_SOFT, T_MUTED,
+    T_ON_PRIMARY, T_PRIMARY, T_PRIMARY_LINE, T_PRIMARY_SOFT, T_TEXT,
 )
 
 
@@ -51,6 +51,8 @@ class ExploreWorker(QThread):
 class _SrcEpisodeRow(QFrame):
     """Single episode checkbox row used in the SourceDetailView registry."""
 
+    play_clicked = pyqtSignal(dict)   # episode dict
+
     def __init__(self, episode: Dict[str, Any], checked: bool = True,
                  already_registered: bool = False,
                  parent: Optional[QWidget] = None):
@@ -72,8 +74,8 @@ class _SrcEpisodeRow(QFrame):
         numlab.setAlignment(Qt.AlignmentFlag.AlignCenter)
         numlab.setFixedSize(48, 26)
         numlab.setStyleSheet(
-            f"color: {T_MUTED}; background: rgba(51,65,85,65);"
-            "border-radius: 6px; font-family: 'Fira Code'; font-size: 10px;"
+            f"color: {T_MUTED}; background: {T_CARD_SOFT}; "
+            f"border-radius: 6px; font-family: '{F_MONO}'; font-size: 10px;"
         )
         lay.addWidget(numlab)
 
@@ -84,7 +86,21 @@ class _SrcEpisodeRow(QFrame):
         title.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         lay.addWidget(title, 1)
 
-        # Status indicator
+        ep_url = str(episode.get("url") or "").strip()
+        if ep_url:
+            self.play_btn = QPushButton("▶")
+            self.play_btn.setObjectName("iconBtn")
+            self.play_btn.setFixedSize(30, 30)
+            self.play_btn.setStyleSheet(
+                f"background: transparent; color: {T_PRIMARY}; border: none; "
+                "border-radius: 15px; font-size: 13px;")
+            self.play_btn.setToolTip(f"Stream: {title_text}")
+            self.play_btn.clicked.connect(
+                lambda: self.play_clicked.emit(dict(episode)))
+            lay.addWidget(self.play_btn)
+        else:
+            self.play_btn = None
+
         if already_registered:
             lay.addWidget(chip_tag("IN LIBRARY", "amber"))
         else:
@@ -98,6 +114,8 @@ class SourceDetailView(QWidget):
     series_selected = pyqtSignal(str, dict)   # source_key, series_data
     # series_id, urls — emitted when the add flow opted into immediate download
     download_requested = pyqtSignal(int, list)
+    # (url, title) — emitted when user clicks the play button on an episode row
+    play_requested = pyqtSignal(str, str)
     # series_id — emitted after the library changed, so the window refreshes
     library_changed = pyqtSignal(int)
 
@@ -221,7 +239,7 @@ class SourceDetailView(QWidget):
 
         title_col = QVBoxLayout()
         title_col.setSpacing(0)
-        title_col.addWidget(eyebrow("Episode registry"))
+        title_col.addWidget(muted_label("episode registry"))
         self.reg_count = mk_label("", "small")
         title_col.addWidget(self.reg_count)
         reg_head.addLayout(title_col)
@@ -264,7 +282,7 @@ class SourceDetailView(QWidget):
         rl.setContentsMargins(16, 12, 16, 12)
         rl.setSpacing(8)
 
-        self.rec_eyebrow = eyebrow("RECOMMENDED")
+        self.rec_eyebrow = muted_label("recommended")
         rl.addWidget(self.rec_eyebrow)
 
         self.rec_scroll = QScrollArea()
@@ -431,6 +449,7 @@ class SourceDetailView(QWidget):
                 str(ep.get("url") or "")))
             already_reg = vid in self._registered_ids
             row = _SrcEpisodeRow(ep, checked=True, already_registered=already_reg)
+            row.play_clicked.connect(self._on_episode_play_clicked)
             rows.append(row)
 
         self.rows_host.set_items(rows)
@@ -598,6 +617,14 @@ class SourceDetailView(QWidget):
             return db.get_all_series()
         except Exception:
             return []
+
+    # ---- episode streaming ---------------------------------------------------
+    def _on_episode_play_clicked(self, episode: Dict[str, Any]) -> None:
+        """User clicked the ▶ play button on an episode row — stream it."""
+        url = str(episode.get("url") or "").strip()
+        title = str(episode.get("title") or "")
+        if url:
+            self.play_requested.emit(url, title)
 
     # ---- lifecycle -----------------------------------------------------------
     def shutdown(self) -> None:

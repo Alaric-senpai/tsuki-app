@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ..components.empty_state import EmptyState
-from ..components.primitives import btn, eyebrow, mk_label, vline
+from ..components.primitives import btn, mk_label, muted_label, vline
 from ..components.series_cards import CompactSeriesRow
 from ..components.stack_list import StackList
 from ..infrastructure.thumbnails import ThumbnailStore
@@ -40,7 +40,7 @@ class LibraryView(QWidget):
         head.setSpacing(10)
         tl = QVBoxLayout()
         tl.setSpacing(2)
-        tl.addWidget(eyebrow("Every series"))
+        tl.addWidget(muted_label("every series"))
         tl.addWidget(mk_label("Library", "display"))
         tl.addWidget(mk_label(
             "Search the registry, inspect episode health and jump straight into a series.",

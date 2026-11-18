@@ -42,6 +42,13 @@ def eyebrow(text: str) -> QLabel:
     return lab
 
 
+def muted_label(text: str = "") -> QLabel:
+    """Lowercase/mixed-case muted label — floor-compliant replacement for eyebrow()."""
+    lab = QLabel(text)
+    lab.setObjectName("mutedLabel")
+    return lab
+
+
 def mono_label(text: str = "") -> QLabel:
     lab = QLabel(text)
     lab.setObjectName("mono")
@@ -137,7 +144,7 @@ def heading_block(kicker: str, title: str, sub: str = "") -> Tuple[QWidget, QVBo
     v.setContentsMargins(0, 0, 0, 0)
     v.setSpacing(2)
     if kicker:
-        v.addWidget(eyebrow(kicker))
+        v.addWidget(muted_label(kicker.lower()))
     v.addWidget(mk_label(title, "display"))
     if sub:
         v.addWidget(mk_label(sub, "body", "muted"))

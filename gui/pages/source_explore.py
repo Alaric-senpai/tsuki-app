@@ -15,43 +15,44 @@ from PyQt6.QtWidgets import (
 )
 
 import sources
-from ..components.primitives import btn, chip_tag, eyebrow, mk_label
+from ..components.primitives import btn, chip_tag, mk_label, muted_label
 from ..components.poster_grid import PosterGrid
 from ..components.source_card import SourceSeriesCard
 from ..infrastructure.thumbnails import ThumbnailStore
 from ..theme import (
-    T_AMBER2, T_AMBER_LINE, T_AMBER_SOFT, T_EMERALD2,
-    T_EMERALD_LINE, T_EMERALD_SOFT, T_MUTED,
-    T_ROSE_LINE, T_ROSE_SOFT, T_ROSE2,
+    T_AMBER2, T_AMBER_LINE, T_AMBER_SOFT, T_CANVAS, T_CANVAS_SOFT,
+    T_EMERALD2, T_EMERALD_LINE, T_EMERALD_SOFT, T_HOVER, T_LINE,
+    T_LINE_STRONG, T_MUTED, T_PRIMARY,
+    T_ROSE_LINE, T_ROSE_SOFT, T_ROSE2, T_TEXT,
 )
 
-SEARCH_STYLE = """
-QLineEdit {
-    background: #0f0f0f;
-    border: 1px solid #303030;
+SEARCH_STYLE = f"""
+QLineEdit {{
+    background: {T_CANVAS};
+    border: 1px solid {T_LINE_STRONG};
     border-radius: 20px;
     padding: 8px 16px;
-    color: #f1f1f1;
+    color: {T_TEXT};
     font-size: 13px;
-    selection-background-color: #3ea6ff;
-    selection-color: #0f0f0f;
-}
-QLineEdit:focus { border-color: #3ea6ff; }
+    selection-background-color: {T_PRIMARY};
+    selection-color: {T_CANVAS};
+}}
+QLineEdit:focus {{ border-color: {T_PRIMARY}; }}
 """
 
-SEARCH_BUTTON_STYLE = """
-QPushButton {
-    background: #272727;
-    color: #f1f1f1;
-    border: 1px solid #303030;
+SEARCH_BUTTON_STYLE = f"""
+QPushButton {{
+    background: {T_CARD};
+    color: {T_TEXT};
+    border: 1px solid {T_LINE_STRONG};
     border-radius: 20px;
     padding: 0 18px;
     font-size: 12px;
     font-weight: 700;
-}
-QPushButton:hover { background: #3f3f3f; }
-QPushButton:pressed { background: #4a4a4a; }
-QPushButton:disabled { color: #717171; background: #1f1f1f; }
+}}
+QPushButton:hover {{ background: {T_HOVER}; }}
+QPushButton:pressed {{ background: {T_CARD_HI}; }}
+QPushButton:disabled {{ color: {T_FAINT}; background: {T_CANVAS_SOFT}; }}
 """
 
 class _ExploreWorker(QThread):
@@ -116,7 +117,7 @@ class SourceExploreView(QWidget):
         content.setSpacing(14)
 
         # ---- header
-        self.eyebrow_label = eyebrow("")
+        self.eyebrow_label = muted_label("")
         self.title_label = mk_label("", "titleLg")
         self.subtitle_label = mk_label("", "body", "muted")
         head = QVBoxLayout()
@@ -211,7 +212,7 @@ class SourceExploreView(QWidget):
         # Deferred: the host calls ensure_loaded() when this tab is shown,
         # so the catalog is not fetched until the user opens this source.
         self._loaded = False
-        self.eyebrow_label.setText(f"{self._label.upper()} · CATALOG")
+        self.eyebrow_label.setText(f"{self._label.lower()} · catalog")
         self.title_label.setText(f"Explore {self._label}")
         self.subtitle_label.setText(
             f"Browse the public {self._label} catalog. "
@@ -257,7 +258,7 @@ class SourceExploreView(QWidget):
         self.grid.hide()
         self.state_panel.hide()
         self._set_status(f"{self._label.upper()} · TRENDING")
-        self.eyebrow_label.setText(f"{self._label.upper()} · CATALOG")
+        self.eyebrow_label.setText(f"{self._label.lower()} · catalog")
         self.title_label.setText(f"Explore {self._label}")
         self.subtitle_label.setText(
             f"Browse the public {self._label} catalog. "

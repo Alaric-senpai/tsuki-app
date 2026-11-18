@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
 )
 
 import app_config
-from ..components.primitives import btn, eyebrow, hline, label_caps, mk_label
+from ..components.primitives import btn, hline, label_caps, mk_label, muted_label
 from ..icons import icon
 from ..theme import (
     F_MONO, T_PRIMARY, T_ROSE2, T_SEC, app_stylesheet,
@@ -70,7 +70,7 @@ class CredentialsDialog(QDialog):
         head.addWidget(glyph, 0, Qt.AlignmentFlag.AlignTop)
         titles = QVBoxLayout()
         titles.setSpacing(2)
-        titles.addWidget(eyebrow("One config for GUI & CLI"))
+        titles.addWidget(muted_label("one config for gui & cli"))
         titles.addWidget(mk_label(
             "Connect YouTube" if self._focus == "youtube" else "Connect Donghua Stream",
             "display"))

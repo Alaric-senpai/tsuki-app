@@ -114,7 +114,6 @@ class MainWindow(QMainWindow):
             lambda video: self._add_explore_video(video, False))
         self.explore_view.download_requested.connect(
             lambda video: self._add_explore_video(video, True))
-        self.explore_view.open_requested.connect(self._open_explore_url)
         for key, view in self.explore_host.source_views.items():
             view.series_selected.connect(self._open_source_series)
         self.source_detail_view.toast.connect(self._on_page_toast)
@@ -123,6 +122,8 @@ class MainWindow(QMainWindow):
             self._download_source_episodes)
         self.source_detail_view.library_changed.connect(
             self._on_library_changed)
+        self.source_detail_view.play_requested.connect(
+            self._stream_source_episode)
         self.library_view.series_opened.connect(self.open_series)
         self.library_view.series_download_all.connect(self._download_all_for)
         self.library_view.series_folder.connect(self._open_folder_series)
@@ -135,6 +136,7 @@ class MainWindow(QMainWindow):
         self.detail_view.sync_series.connect(self._sync_series)
         self.detail_view.episode_changed.connect(lambda sid: (self.refresh_full(sid)))
         self.detail_view.toast.connect(self._on_page_toast)
+        self.detail_view.play_requested.connect(self._open_downloaded_file)
         self.settings_view.test_connection.connect(self._test_connection)
         self.settings_view.resync_requested.connect(self._force_resync)
         self.settings_view.settings_changed.connect(self._on_settings_changed)
@@ -407,6 +409,16 @@ class MainWindow(QMainWindow):
         url = str((video or {}).get("url") or "").strip()
         if url:
             QDesktopServices.openUrl(QUrl(url))
+
+    def _stream_source_episode(self, url: str, title: str) -> None:
+        """Stream a source (DonghuaStream/AnimeCube) episode in the app player."""
+        self.explore_host.select("youtube")
+        self.explore_host.youtube_view.player.play_url(url, title)
+
+    def _open_downloaded_file(self, path: str) -> None:
+        """Open a downloaded episode file with the system default player."""
+        if path:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(path))
 
     def _connect_youtube(self) -> None:
         dlg = CredentialsDialog(focus="youtube", parent=self)

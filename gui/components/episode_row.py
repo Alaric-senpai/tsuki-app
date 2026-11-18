@@ -15,6 +15,7 @@ class EpisodeRow(QFrame):
     edit_ep = pyqtSignal(dict)
     del_ep = pyqtSignal(dict)
     retry = pyqtSignal(dict)
+    play = pyqtSignal(str)   # save_dir — open with system player
 
     def __init__(self, ep: Dict[str, Any], index: int, parent: Optional[QWidget] = None):
         super().__init__(parent)
@@ -47,6 +48,15 @@ class EpisodeRow(QFrame):
         label = {"downloaded": "✔ READY", "failed": "✖ FAILED",
                  "queued": "QUEUED", "pending": "PENDING"}.get(status, status.upper())
         lay.addWidget(chip_tag(label, tone))
+
+        if status == "downloaded":
+            save_dir = str(ep.get("save_dir") or "").strip()
+            pb = icon_btn("", "Play this episode with your default video player")
+            pb.setFixedSize(28, 28)
+            pb.setIcon(icon("play", T_PRIMARY, 15))
+            pb.setIconSize(QSize(15, 15))
+            pb.clicked.connect(lambda: self.play.emit(save_dir))
+            lay.addWidget(pb)
 
         dl = icon_btn("", "Download this episode now")
         dl.setFixedSize(28, 28)

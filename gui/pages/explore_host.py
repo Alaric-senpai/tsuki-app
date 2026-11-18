@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
-from ..components.primitives import btn, eyebrow
+from ..components.primitives import btn, muted_label
 from ..infrastructure.thumbnails import ThumbnailStore
 from .explore import ExploreView
 from .source_explore import SourceExploreView
@@ -40,7 +40,7 @@ class ExploreHost(QWidget):
         bl = QHBoxLayout(bar)
         bl.setContentsMargins(18, 10, 18, 10)
         bl.setSpacing(8)
-        bl.addWidget(eyebrow("Explore"))
+        bl.addWidget(muted_label("explore"))
         bl.addSpacing(6)
 
         self._group = QButtonGroup(self)

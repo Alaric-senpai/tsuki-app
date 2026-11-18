@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QScrollArea, QVBoxLayout, QWidget,
 )
 
-from ..components.primitives import btn, eyebrow, hline, label_caps, mk_label
+from ..components.primitives import btn, hline, label_caps, mk_label, muted_label
 from ..theme import F_MONO, T_MUTED, T_ROSE2, T_SEC, app_stylesheet
 
 
@@ -64,7 +64,7 @@ class SourceEpisodesDialog(QDialog):
 
         head = QVBoxLayout()
         head.setSpacing(2)
-        head.addWidget(eyebrow("Save a source series"))
+        head.addWidget(muted_label("Save a source series"))
         head.addWidget(mk_label("Add Series to Library", "display"))
         self._head_note = mk_label(
             "Choose which episodes to register, then pick the series that "
