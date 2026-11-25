@@ -412,3 +412,7 @@ Gates: `bun run typecheck` clean, `bun run lint` 0 errors (8 warnings: 5 pre-exi
 Gates: `cargo fmt --all -- --check` clean, `cargo clippy --all-targets -- -D warnings` clean, `cargo test --lib` 99 passed in 1.7 s; `bun run typecheck` clean, `bun run lint` 0 errors (9 warnings: 5 `<img>`, 4 `exhaustive-deps`), `bun run build` static export clean.
 
 Release decision: v1.1.1 (option A) — the remote v1.1.0 tag at legacy commit f900406 is preserved; release.yml now expects v1.1.1.
+
+### Pending for 1.1.2
+
+- Streamplay.co.in embeds are blocked in 1.1.1 with an actionable message while a resolver is developed; yt-dlp cannot extract them and the metadata endpoint returns an empty body. Other sources (DonghuaStream, animekhor, Dailymotion, opt-in YouTube) work.

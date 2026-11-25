@@ -67,11 +67,29 @@ pub fn supports(raw: &str) -> bool {
     source_for_url(raw).is_some()
 }
 
+/// Streamplay embeds have no working resolver yet (see `docs/PROGRESS.md`).
+/// Returning `Ok(None)` would hand the raw page to yt-dlp, which reports a
+/// generic "Unsupported URL" after all retries; fail before any network call.
+pub fn is_streamplay_url(raw: &str) -> bool {
+    Url::parse(raw.trim())
+        .ok()
+        .and_then(|url| url.host_str().map(str::to_lowercase))
+        .is_some_and(|host| {
+            host == "play.streamplay.co.in" || host.ends_with(".play.streamplay.co.in")
+        })
+}
+
 /// Resolve a supported episode page to a playable target.
 ///
 /// Returns `Ok(None)` for URLs no source owns (plain YouTube links etc.), so
 /// the downloader can hand them straight to yt-dlp.
 pub async fn resolve_for_download(page_url: &str) -> Result<Option<ResolvedMedia>, AppError> {
+    if is_streamplay_url(page_url) {
+        return Err(AppError::source_with(
+            "Streamplay.co.in downloads are pending development. Choose another source or try again in a later release.",
+            format!("requested page: {page_url}"),
+        ));
+    }
     match source_for_url(page_url) {
         Some(donghuastream::SOURCE_KEY) => Ok(Some(donghuastream::resolve(page_url).await?)),
         // Keep claiming the host so a raw page URL is never handed to yt-dlp,
@@ -208,6 +226,20 @@ mod tests {
             source_for_url("https://www.animekhor.org/anime/renegade-immortal/"),
             Some("animekhor")
         );
+    }
+
+    #[tokio::test]
+    async fn streamplay_pages_fail_with_an_actionable_error() {
+        let result = resolve_for_download(
+            "https://play.streamplay.co.in/embed/4809ec9e-9c45-435f-8b29-317a61cffd22",
+        )
+        .await;
+        let error = match result {
+            Ok(Some(_)) => panic!("streamplay must not be handed to yt-dlp"),
+            Ok(None) => panic!("streamplay must be recognised, not treated as a generic URL"),
+            Err(error) => error,
+        };
+        assert!(error.message().contains("pending development"));
     }
 
     #[test]
