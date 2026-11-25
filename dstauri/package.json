@@ -11,6 +11,7 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "sidecars": "bash scripts/fetch-sidecars.sh",
     "tauri": "tauri"
   },
   "dependencies": {

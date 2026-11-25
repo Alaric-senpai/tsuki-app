@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.alaricsenpai.tsuki",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "bun run sidecars && bun run dev",
     "devUrl": "http://localhost:3000",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "bun run sidecars && bun run build",
     "frontendDist": "../out",
     "removeUnusedCommands": true
   },
@@ -36,7 +36,11 @@
       },
       "assetProtocol": {
         "enable": true,
-        "scope": ["$HOME/**", "$VIDEO/**", "$DOWNLOADS/**"]
+        "scope": [
+          "$HOME/**",
+          "$VIDEO/**",
+          "$DOWNLOADS/**"
+        ]
       }
     }
   },
@@ -49,6 +53,10 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
+    ],
+    "externalBin": [
+      "binaries/yt-dlp",
+      "binaries/ffmpeg"
     ]
   }
 }

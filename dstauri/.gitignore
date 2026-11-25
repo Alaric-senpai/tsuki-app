@@ -15,6 +15,9 @@
 /.next/
 /out/
 
+# bundled sidecars (fetched by scripts/fetch-sidecars.sh, not committed)
+/src-tauri/binaries/
+
 # production
 /build
 

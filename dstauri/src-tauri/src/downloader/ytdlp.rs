@@ -68,27 +68,48 @@ pub struct DownloadOptions {
     pub rate_limit_mb: f64,
 }
 
-/// Located yt-dlp binary.
+/// Located yt-dlp binary and, when present, the ffmpeg used for merging.
 pub struct YtDlp {
     program: PathBuf,
+    ffmpeg: Option<PathBuf>,
 }
 
 impl YtDlp {
-    /// Prefer an updater-provided binary in app data, then `PATH`.
+    /// Resolve the binaries in this order:
+    ///
+    /// 1. `<app_data>/bin/` — written by the in-app updater, so it is newer than
+    ///    whatever shipped in the bundle.
+    /// 2. The directory holding the running executable — this is where Tauri
+    ///    places `externalBin` sidecars (`Contents/MacOS` on macOS).
+    /// 3. `PATH` — the escape hatch for a system install.
     pub fn locate(data_dir: &Path) -> Result<Self, AppError> {
-        let name = format!("yt-dlp{}", std::env::consts::EXE_SUFFIX);
-        let bundled = data_dir.join("bin").join(&name);
-        if bundled.is_file() {
-            return Ok(Self { program: bundled });
-        }
-        if let Some(found) = which(&name) {
-            return Ok(Self { program: found });
-        }
-        Err(AppError::download_with(
-            "yt-dlp was not found. Install it, or place the binary in the app's \
-             data folder under bin/.",
-            format!("looked for {name} in PATH and {}", bundled.display()),
-        ))
+        let exe_dir = executable_dir();
+        let ytdlp_name = format!("yt-dlp{}", std::env::consts::EXE_SUFFIX);
+        let ffmpeg_name = format!("ffmpeg{}", std::env::consts::EXE_SUFFIX);
+
+        let program = find_binary(&ytdlp_name, data_dir, exe_dir.as_deref()).ok_or_else(|| {
+            let mut looked = vec![
+                data_dir.join("bin").join(&ytdlp_name).display().to_string(),
+                "PATH".to_string(),
+            ];
+            if let Some(dir) = &exe_dir {
+                looked.insert(1, dir.join(&ytdlp_name).display().to_string());
+            }
+            AppError::download_with(
+                "yt-dlp was not found. Reinstall the app, or place the binary in \
+                 the app's data folder under bin/.",
+                format!("looked for {ytdlp_name} in {}", looked.join(", ")),
+            )
+        })?;
+
+        let ffmpeg = find_binary(&ffmpeg_name, data_dir, exe_dir.as_deref());
+
+        Ok(Self { program, ffmpeg })
+    }
+
+    /// The ffmpeg yt-dlp will be told to use, if one was found.
+    pub fn ffmpeg(&self) -> Option<&Path> {
+        self.ffmpeg.as_deref()
     }
 
     /// Run one attempt. Returns the verified final media path.
@@ -112,7 +133,7 @@ impl YtDlp {
         })?;
 
         let print_file = unique_print_file(&options.save_dir);
-        let args = build_args(options, &print_file);
+        let args = build_args(options, &print_file, self.ffmpeg());
 
         let mut child = Command::new(&self.program)
             .args(&args)
@@ -238,14 +259,25 @@ impl YtDlp {
 }
 
 /// Build the CLI argument list for one attempt.
-pub fn build_args(options: &DownloadOptions, print_file: &Path) -> Vec<OsString> {
+pub fn build_args(
+    options: &DownloadOptions,
+    print_file: &Path,
+    ffmpeg: Option<&Path>,
+) -> Vec<OsString> {
     let (format, _) = quality::resolve_format(&options.quality);
-    let mut args: Vec<OsString> = Vec::with_capacity(32);
+    let mut args: Vec<OsString> = Vec::with_capacity(34);
 
     push(&mut args, "--newline");
     // Bundled yt-dlp is pinned; its periodic "older than 90 days" notice is
     // noise in the console (we have our own in-app updater).
     push(&mut args, "--no-warnings");
+    // Point yt-dlp at the ffmpeg that shipped with the app. Without this the
+    // merge postprocessor silently falls back to PATH and every separate
+    // video+audio download fails on a machine without ffmpeg installed.
+    if let Some(path) = ffmpeg {
+        push(&mut args, "--ffmpeg-location");
+        args.push(path.as_os_str().to_os_string());
+    }
     push(&mut args, "--no-playlist");
     push(&mut args, "--no-simulate");
     push(&mut args, "--restrict-filenames");
@@ -420,6 +452,28 @@ fn which(program: &str) -> Option<PathBuf> {
         .find(|candidate| candidate.is_file())
 }
 
+/// Directory holding the running executable; Tauri puts sidecars next to it.
+fn executable_dir() -> Option<PathBuf> {
+    std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(Path::to_path_buf))
+}
+
+/// Look for `name` in the updater folder, next to the executable, then `PATH`.
+fn find_binary(name: &str, data_dir: &Path, exe_dir: Option<&Path>) -> Option<PathBuf> {
+    let updated = data_dir.join("bin").join(name);
+    if updated.is_file() {
+        return Some(updated);
+    }
+    if let Some(dir) = exe_dir {
+        let sidecar = dir.join(name);
+        if sidecar.is_file() {
+            return Some(sidecar);
+        }
+    }
+    which(name)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -440,7 +494,7 @@ mod tests {
     }
 
     fn args_as_strings(options: &DownloadOptions) -> Vec<String> {
-        build_args(options, Path::new("/tmp/report.path"))
+        build_args(options, Path::new("/tmp/report.path"), None)
             .into_iter()
             .map(|value| value.to_string_lossy().to_string())
             .collect()
@@ -518,5 +572,49 @@ mod tests {
     fn subtitle_language_lists_are_cleaned() {
         assert_eq!(subtitle_langs(" en , es ,, "), "en,es");
         assert_eq!(subtitle_langs(""), "en");
+    }
+
+    #[test]
+    fn ffmpeg_location_is_only_passed_when_known() {
+        let plain = args_as_strings(&options());
+        assert!(!plain.iter().any(|arg| arg == "--ffmpeg-location"));
+
+        let with_ffmpeg = build_args(
+            &options(),
+            Path::new("/tmp/report.path"),
+            Some(Path::new("/opt/tsuki/ffmpeg")),
+        )
+        .into_iter()
+        .map(|value| value.to_string_lossy().to_string())
+        .collect::<Vec<_>>();
+        let index = with_ffmpeg
+            .iter()
+            .position(|arg| arg == "--ffmpeg-location")
+            .expect("flag is present");
+        assert_eq!(with_ffmpeg[index + 1], "/opt/tsuki/ffmpeg");
+    }
+
+    #[test]
+    fn binary_lookup_prefers_the_updater_copy() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        let data_dir = temp.path().join("data");
+        let exe_dir = temp.path().join("app");
+        std::fs::create_dir_all(data_dir.join("bin")).expect("data bin");
+        std::fs::create_dir_all(&exe_dir).expect("exe dir");
+
+        let name = format!("yt-dlp{}", std::env::consts::EXE_SUFFIX);
+        std::fs::write(exe_dir.join(&name), b"bundled").expect("sidecar");
+        assert_eq!(
+            find_binary(&name, &data_dir, Some(&exe_dir)),
+            Some(exe_dir.join(&name)),
+            "the sidecar next to the executable wins over PATH"
+        );
+
+        std::fs::write(data_dir.join("bin").join(&name), b"updated").expect("update");
+        assert_eq!(
+            find_binary(&name, &data_dir, Some(&exe_dir)),
+            Some(data_dir.join("bin").join(&name)),
+            "an updater copy wins over the bundled sidecar"
+        );
     }
 }

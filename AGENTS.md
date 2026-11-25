@@ -94,7 +94,7 @@ The template README says `shadcn-ui@latest`; the current CLI is `shadcn@latest`.
 | Notifications | `tauri-plugin-notification` |
 | Window state | `tauri-plugin-window-state` |
 | Single instance | `tauri-plugin-single-instance` |
-| Sidecars (yt-dlp, ffmpeg) | `tokio::process` (Rust owns the child process). `tauri-plugin-shell` is **not** in `Cargo.toml`; add it only if the frontend ever needs to spawn something itself. Bundling as `externalBin` is still pending. |
+| Sidecars (yt-dlp, ffmpeg) | `tokio::process` (Rust owns the child process). `tauri-plugin-shell` is **not** in `Cargo.toml`; add it only if the frontend ever needs to spawn something itself. Bundled via `externalBin`; `bun run sidecars` (= `scripts/fetch-sidecars.sh`) puts the host build in `src-tauri/binaries/`, which is gitignored. |
 | Player | see §8 |
 
 **Frontend (`package.json`, use `bun`)**
@@ -203,7 +203,10 @@ src/
 
 - Request/response → `#[tauri::command]`. Streaming (progress, console lines, sync status, player state) → Tauri **events**,
   namespaced like `download://progress`, `download://console`, `player://state`.
-- Generate TS types from Rust (`tauri-specta`) so both sides never drift. Don't hand-write duplicate types.
+- Generate TS types from Rust so both sides never drift. Don't hand-write duplicate types.
+  **Decision: `ts-rs`, not `tauri-specta`.** `tauri-specta` is still at `2.0.0-rc` and would add an RC dependency
+  to the whole command surface; `ts-rs` is stable, and `#[derive(TS)] #[ts(export, export_to = "../../lib/ipc/bindings/")]`
+  emits the `.ts` files during `cargo test`. Applied at the **end of Phase 2**, once that phase's new payload types exist.
 - **Components never call `invoke` directly.** They use hooks → `lib/ipc/*` → `invoke`. Server state goes through TanStack Query; zustand holds only UI-local state.
 - Rust errors serialize to `{ code, message, detail }`. The UI shows `message` and offers **Copy details**.
 - Long work runs on tokio tasks; never block a command handler.
@@ -353,11 +356,12 @@ For UI tasks also compare against the Stitch screenshot. If the environment can'
 ## 12. Phases (work in order; mark done in `docs/PROGRESS.md`)
 
 **Phase 0: Foundations.** Verify scaffold versions · add missing deps (§3) · static export + CSP + capabilities ·
-Stitch token extraction → theme · `AppShell`/`Sidebar`/`Titlebar` · `tauri-specta` bindings · CI gates.
+Stitch token extraction → theme · `AppShell`/`Sidebar`/`Titlebar` · typed IPC bindings (deferred to end of Phase 2) · CI gates.
 **Phase 0b: Player spike (§8).** Decision recorded before any player UI.
 **Phase 1: Data.** `config.rs` · SQLite + migrations · legacy JSON import · Library + Home (read-only, real data).
-**Phase 2: Downloader.** *(in progress — DonghuaStream done)* yt-dlp process driver · concurrent queue (configurable, default 3, FIFO) with cancel/retry ·
-retry semantics · archive · events · Downloads page. Still open: sidecar bundling, priority reorder, pause/resume.
+**Phase 2: Downloader.** *(in progress)* yt-dlp process driver · concurrent queue (configurable, default 3, FIFO) with cancel/retry ·
+retry semantics · archive · events · Downloads page · **bundled `yt-dlp` + `ffmpeg` sidecars** (`externalBin` + `scripts/fetch-sidecars.sh`).
+Still open: pause/resume, priority reorder, disk-usage scan, yt-dlp updater, typed IPC bindings.
 **Phase 3: Sources & Explore.** `youtube.rs` + cache · AnimeCube scraper (DonghuaStream resolver already ported in Phase 2) ·
 Explore tabs · show details · Add Series (existing/new) · Add wizard.
 **Phase 4: Player.** `PlayerEngine` + adapters · local playback · streaming (+ proxy) · controls UI · resume/watched · external-player handoff.
@@ -383,5 +387,5 @@ Each phase ends with a working, demoable app, not a half-wired branch.
 - [x] `STITCH_PROJECT_ID` and the screen → route map (§5) — project `9300912284796071368`; map filled in above.
 - [ ] Embedded player engine result of the spike (§8)
 - [x] Legacy data import in v1 — implemented as staged JSON (`tools/export_legacy.py` → `import_legacy_json`), runs on startup when `meta.legacy_data_imported` is unset. No PostgreSQL client ships in the app.
-- [ ] Bundle `ffmpeg` (size) or require it on PATH?
+- [x] Bundle `ffmpeg` (size) or require it on PATH? — **bundle both `yt-dlp` and `ffmpeg`.** `tauri.conf.json` declares them as `externalBin`, `scripts/fetch-sidecars.sh` fetches the host build into `src-tauri/binaries/` (gitignored), and `YtDlp::locate` prefers `<app_data>/bin` → sidecar next to the executable → `PATH`. `--ffmpeg-location` is passed explicitly so the merge step never silently falls back. ~120 MB per platform; `THIRD_PARTY.md` records licences.
 - [ ] Target platforms for release builds (Linux only, or + Windows/macOS)?
