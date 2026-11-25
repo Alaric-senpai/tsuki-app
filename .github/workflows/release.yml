@@ -21,28 +21,13 @@ jobs:
           - name: "Windows"
             platform: "windows-latest"
             args: "--bundles nsis"
-            rustTargets: ""
             assetPattern: "[name]-[version]-[platform]-[arch][setup][ext]"
             uploadPlainBinary: false
             portableUpload: true
-          - name: "macOS Apple Silicon"
-            platform: "macos-latest"
-            args: "--target aarch64-apple-darwin --bundles dmg"
-            rustTargets: "aarch64-apple-darwin"
-            assetPattern: "[name]-[version]-[platform]-[arch][setup][ext]"
-            uploadPlainBinary: false
-            portableUpload: false
-          - name: "macOS Intel"
-            platform: "macos-latest"
-            args: "--target x86_64-apple-darwin --bundles dmg"
-            rustTargets: "x86_64-apple-darwin"
-            assetPattern: "[name]-[version]-[platform]-[arch][setup][ext]"
-            uploadPlainBinary: false
-            portableUpload: false
+          # macOS/darwin builds are intentionally skipped for now.
           - name: "Linux"
             platform: "ubuntu-22.04"
             args: "--bundles appimage,deb,rpm"
-            rustTargets: ""
             assetPattern: "[name]-[version]-[platform]-[arch][setup][ext]"
             uploadPlainBinary: false
             portableUpload: false
@@ -54,8 +39,6 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.rustTargets }}
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -81,11 +64,12 @@ jobs:
         uses: tauri-apps/tauri-action@action-v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_SIGNING_IDENTITY: ${{ startsWith(matrix.platform, 'macos-') && '-' || '' }}
         with:
           projectPath: dstauri
-          tagName: v1.1.1
-          releaseName: v1.1.1
+          # Follow the pushed tag so hotfix tags (e.g. v1.1.1-hotfix.1)
+          # publish their own release without retagging the original one.
+          tagName: ${{ github.ref_name }}
+          releaseName: ${{ github.ref_name }}
           releaseBody: |
             See the assets below to download this version.
             The Windows portable executable requires the Microsoft Edge WebView2 Runtime.

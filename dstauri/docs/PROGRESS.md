@@ -5,6 +5,25 @@ Update this at the end of every working session (see `AGENTS.md` §13).
 
 ---
 
+## Current session — packaging hotfix (v1.1.1-hotfix)
+
+- Fedora RPM install failed: bundled `externalBin` files landed at `/usr/bin/yt-dlp` and
+  `/usr/bin/ffmpeg`, colliding with the distro packages. Fixed by shipping them under private
+  names (`tsuki-yt-dlp`, `tsuki-ffmpeg`) in `tauri.conf.json` and `scripts/fetch-sidecars.sh`.
+- `YtDlp::locate` now prefers the prefixed sidecar, then the legacy/plain name (updater copies,
+  older bundles, PATH). Added a unit test for the new precedence.
+- macOS/darwin jobs removed from `.github/workflows/release.yml`; remaining Windows + Linux jobs
+  no longer need cross-target setup or Apple signing. `tagName`/`releaseName` now follow
+  `github.ref_name` so hotfix tags publish their own release.
+- Resolution: an "only install if missing" RPM post-install hook cannot work — RPM file lists are
+  static and the transaction is rejected before hooks run.
+
+### Verification
+
+- `cargo fmt --all` applied; `cargo test` run after formatting.
+
+---
+
 ## Current session — Explore/item, player, downloads, updates & settings
 
 **Status: the 14-task UX batch, the follow-up fix batch, and the 12 runtime-issue fixes are implemented. All gates are green, including `cargo test` (55 passed).**

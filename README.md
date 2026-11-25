@@ -68,7 +68,9 @@ bun run tauri dev         # development build
 
 `sidecars` fetches host-specific binaries into `src-tauri/binaries/` (gitignored).
 They are declared as Tauri `externalBin` resources and bundled into release
-builds.
+builds under the private names `tsuki-yt-dlp` / `tsuki-ffmpeg`, so Linux packages
+do not conflict with distro `yt-dlp`/`ffmpeg`. Release CI builds Windows and
+Linux only; macOS jobs are skipped.
 
 ### Quality gates
 
