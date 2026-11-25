@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Geist, JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google"
+import localFont from "next/font/local"
 
 import { ExternalLinkGuard } from "@/components/external-link-guard"
 import { MiniPlayer } from "@/components/player/mini-player"
@@ -11,19 +11,27 @@ import { AppShell } from "@/components/layout/app-shell"
 
 import "./globals.css"
 
-const geist = Geist({
+// Fonts are bundled in public/fonts so the app never needs a network request
+// to Google Fonts (offline installs and the Tauri webview both benefit).
+const geist = localFont({
+  src: "../public/fonts/geist-latin.woff2",
   variable: "--font-geist-sans",
-  subsets: ["latin"],
+  weight: "100 900",
+  display: "swap",
 })
 
-const jakarta = Plus_Jakarta_Sans({
+const jakarta = localFont({
+  src: "../public/fonts/plus-jakarta-sans-latin.woff2",
   variable: "--font-jakarta",
-  subsets: ["latin"],
+  weight: "200 800",
+  display: "swap",
 })
 
-const jetbrains = JetBrains_Mono({
+const jetbrains = localFont({
+  src: "../public/fonts/jetbrains-mono-latin.woff2",
   variable: "--font-jetbrains",
-  subsets: ["latin"],
+  weight: "100 800",
+  display: "swap",
 })
 
 export const metadata: Metadata = {

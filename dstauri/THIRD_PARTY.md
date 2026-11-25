@@ -42,3 +42,13 @@ Managed through `dstauri/package.json`; predominantly MIT. Notable:
   Settings. Subject to Google's terms and quota policy.
 - **DonghuaStream / AnimeCube** — public websites scraped by the app at the user's
   request. No content is redistributed.
+
+## Bundled fonts
+
+The app bundles latin subsets of three variable fonts locally so it never fetches
+from Google Fonts at runtime. All three are licensed under the SIL Open Font
+License 1.1; the full license texts ship beside the font files:
+
+- **Geist** — `public/fonts/geist-latin.woff2` (`geist-OFL.txt`)
+- **Plus Jakarta Sans** — `public/fonts/plus-jakarta-sans-latin.woff2` (`plusjakartasans-OFL.txt`)
+- **JetBrains Mono** — `public/fonts/jetbrains-mono-latin.woff2` (`jetbrainsmono-OFL.txt`)
