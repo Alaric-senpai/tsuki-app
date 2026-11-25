@@ -544,7 +544,7 @@ pub fn catalog_url(query: &CatalogQuery) -> String {
 
     let mut url = if page > 1 {
         format!(
-            "{DONGHUASTREAM_BASE}/anime/pagg/{page}/?status={}&type={}&order={}",
+            "{DONGHUASTREAM_BASE}/anime/page/{page}/?status={}&type={}&order={}",
             allowed(&STATUSES, &query.status),
             allowed(&KINDS, &query.kind),
             allowed(&ORDERS, &query.order),
@@ -769,6 +769,30 @@ mod tests {
         assert_eq!(
             catalog_url(&injected),
             "https://donghuastream.org/anime/?status=&type=&order="
+        );
+
+        let mut paged = CatalogQuery {
+            genre: "martial-arts".into(),
+            order: "popular".into(),
+            status: "ongoing".into(),
+            kind: "ona".into(),
+            ..CatalogQuery::default()
+        };
+        paged.page = 2;
+        assert_eq!(
+            catalog_url(&paged),
+            "https://donghuastream.org/anime/page/2/?status=ongoing&type=ona&order=popular&genre%5B%5D=martial-arts"
+        );
+
+        let mut paged_injected = CatalogQuery {
+            order: "drop table".into(),
+            genre: "../etc".into(),
+            ..CatalogQuery::default()
+        };
+        paged_injected.page = 4;
+        assert_eq!(
+            catalog_url(&paged_injected),
+            "https://donghuastream.org/anime/page/4/?status=&type=&order="
         );
     }
 
