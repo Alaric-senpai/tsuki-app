@@ -117,6 +117,12 @@ const EMPTY_SOURCES: SourceInfo[] = [
     note: "Temporarily disconnected — AnimeCube downloads are unavailable.",
   },
   {
+    key: "animekhor",
+    label: "AnimeKhor",
+    available: true,
+    note: "Search, genres and trending.",
+  },
+  {
     key: "youtube",
     label: "YouTube",
     available: false,

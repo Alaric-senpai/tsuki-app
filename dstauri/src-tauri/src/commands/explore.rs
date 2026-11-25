@@ -13,6 +13,7 @@ use crate::downloader::DownloadSnapshot;
 use crate::error::AppError;
 use crate::media_ids::extract_video_id;
 use crate::sources::animecube;
+use crate::sources::animekhor;
 use crate::sources::browse::{CatalogFilters, CatalogPage, SourceSeries};
 use crate::sources::donghuastream::browse::{self, CatalogQuery};
 use crate::state::AppState;
@@ -71,6 +72,12 @@ fn source_infos(youtube_enabled: bool) -> Vec<SourceInfo> {
             note: "Temporarily disconnected — AnimeCube downloads are unavailable.".to_string(),
         },
         SourceInfo {
+            key: animekhor::SOURCE_KEY.to_string(),
+            label: "AnimeKhor".to_string(),
+            available: true,
+            note: "No account needed.".to_string(),
+        },
+        SourceInfo {
             key: "youtube".to_string(),
             label: "YouTube".to_string(),
             available: youtube_enabled,
@@ -85,7 +92,9 @@ fn source_infos(youtube_enabled: bool) -> Vec<SourceInfo> {
 
 fn ensure_source(source: &str) -> Result<(), AppError> {
     let source = source.trim();
-    if source.eq_ignore_ascii_case("donghuastream") {
+    if source.eq_ignore_ascii_case("donghuastream")
+        || source.eq_ignore_ascii_case(animekhor::SOURCE_KEY)
+    {
         Ok(())
     } else {
         Err(AppError::source_with(
@@ -104,7 +113,9 @@ pub async fn explore_filters(
 ) -> Result<CatalogFilters, AppError> {
     ensure_source(&source)?;
     let minutes = state.config()?.explore.cache_minutes;
-    if source.trim().eq_ignore_ascii_case(animecube::SOURCE_KEY) {
+    if source.trim().eq_ignore_ascii_case(animekhor::SOURCE_KEY) {
+        animekhor::filters(minutes, refresh.unwrap_or(false)).await
+    } else if source.trim().eq_ignore_ascii_case(animecube::SOURCE_KEY) {
         Ok(animecube::filters())
     } else {
         browse::filters(minutes, refresh.unwrap_or(false)).await
@@ -126,7 +137,9 @@ pub async fn explore_catalog(
     if query.limit == 0 {
         query.limit = explore.result_limit as usize;
     }
-    if source.trim().eq_ignore_ascii_case(animecube::SOURCE_KEY) {
+    if source.trim().eq_ignore_ascii_case(animekhor::SOURCE_KEY) {
+        animekhor::catalog(&query, explore.cache_minutes, refresh.unwrap_or(false)).await
+    } else if source.trim().eq_ignore_ascii_case(animecube::SOURCE_KEY) {
         animecube::catalog(&query, query.limit).await
     } else {
         browse::catalog(&query, explore.cache_minutes, refresh.unwrap_or(false)).await
@@ -143,7 +156,9 @@ pub async fn explore_series(
 ) -> Result<SourceSeries, AppError> {
     ensure_source(&source)?;
     let minutes = state.config()?.explore.cache_minutes;
-    if source.trim().eq_ignore_ascii_case(animecube::SOURCE_KEY) {
+    if source.trim().eq_ignore_ascii_case(animekhor::SOURCE_KEY) {
+        animekhor::series(&id, minutes, refresh.unwrap_or(false)).await
+    } else if source.trim().eq_ignore_ascii_case(animecube::SOURCE_KEY) {
         animecube::series(&id).await
     } else {
         browse::series(&id, minutes, refresh.unwrap_or(false)).await
@@ -170,7 +185,9 @@ pub async fn import_source_series(
 ) -> Result<SourceImportResult, AppError> {
     ensure_source(&source)?;
     let minutes = state.config()?.explore.cache_minutes;
-    let remote = if source.trim().eq_ignore_ascii_case(animecube::SOURCE_KEY) {
+    let remote = if source.trim().eq_ignore_ascii_case(animekhor::SOURCE_KEY) {
+        animekhor::series(&id, minutes, false).await?
+    } else if source.trim().eq_ignore_ascii_case(animecube::SOURCE_KEY) {
         animecube::series(&id).await?
     } else {
         browse::series(&id, minutes, false).await?
@@ -317,6 +334,24 @@ mod tests {
             .expect("animecube entry");
         assert!(!cube.available);
         assert!(cube.note.contains("unavailable"));
+    }
+
+    #[test]
+    fn source_infos_include_animekhor() {
+        let sources = source_infos(true);
+        let khor = sources
+            .iter()
+            .find(|source| source.key == animekhor::SOURCE_KEY)
+            .expect("animekhor entry");
+        assert!(khor.available);
+        assert_eq!(khor.label, "AnimeKhor");
+    }
+
+    #[test]
+    fn animekhor_is_an_allowed_source() {
+        assert!(ensure_source("animekhor").is_ok());
+        assert!(ensure_source("donghuastream").is_ok());
+        assert!(ensure_source("animecube").is_err());
     }
 
     #[test]

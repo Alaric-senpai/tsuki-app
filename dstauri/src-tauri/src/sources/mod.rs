@@ -8,6 +8,7 @@
 //! talks to third-party sites.
 
 pub mod animecube;
+pub mod animekhor;
 pub mod browse;
 pub mod cache;
 pub mod donghuastream;
@@ -54,6 +55,8 @@ pub fn source_for_url(raw: &str) -> Option<&'static str> {
         Some(donghuastream::SOURCE_KEY)
     } else if animecube::is_animecube_host(&host) {
         Some(animecube::SOURCE_KEY)
+    } else if animekhor::is_animekhor_host(&host) {
+        Some(animekhor::SOURCE_KEY)
     } else {
         None
     }
@@ -78,6 +81,7 @@ pub async fn resolve_for_download(page_url: &str) -> Result<Option<ResolvedMedia
             "AnimeCube downloads are temporarily unavailable.",
             format!("requested page: {page_url}"),
         )),
+        Some(animekhor::SOURCE_KEY) => Ok(Some(animekhor::resolve(page_url).await?)),
         _ => Ok(None),
     }
 }
@@ -192,6 +196,18 @@ mod tests {
             Err(error) => error,
         };
         assert!(error.message().contains("temporarily unavailable"));
+    }
+
+    #[test]
+    fn animekhor_pages_are_recognised() {
+        assert_eq!(
+            source_for_url("https://animekhor.org/renegade-immortal-episode-1/"),
+            Some("animekhor")
+        );
+        assert_eq!(
+            source_for_url("https://www.animekhor.org/anime/renegade-immortal/"),
+            Some("animekhor")
+        );
     }
 
     #[test]

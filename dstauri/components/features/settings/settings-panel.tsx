@@ -70,6 +70,7 @@ const CONCURRENCY_OPTIONS: readonly SelectOption[] = [
 ]
 const UPDATE_SOURCE_OPTIONS: readonly SelectOption[] = [
   { value: "donghuastream", label: "DonghuaStream" },
+  { value: "animekhor", label: "AnimeKhor" },
 ]
 
 type DialogKey =

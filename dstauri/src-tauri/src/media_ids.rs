@@ -16,6 +16,8 @@ use url::Url;
 const ANIMECUBE_HOSTS: [&str; 2] = ["animecube.live", "www.animecube.live"];
 /// Hosts treated as DonghuaStream pages.
 const DONGHUASTREAM_HOSTS: [&str; 2] = ["donghuastream.org", "www.donghuastream.org"];
+/// Hosts treated as animekhor.org pages.
+const ANIMEKHOR_HOSTS: [&str; 2] = ["animekhor.org", "www.animekhor.org"];
 
 /// Final media containers recognised as finished downloads.
 pub const MEDIA_EXTENSIONS: [&str; 5] = [".mp4", ".mkv", ".webm", ".mov", ".m4v"];
@@ -76,6 +78,10 @@ pub fn is_donghuastream_host(host: &str) -> bool {
     DONGHUASTREAM_HOSTS.contains(&host)
 }
 
+pub fn is_animekhor_host(host: &str) -> bool {
+    ANIMEKHOR_HOSTS.contains(&host)
+}
+
 fn digest(raw: &str) -> String {
     let mut hasher = Sha1::new();
     hasher.update(raw.as_bytes());
@@ -105,6 +111,9 @@ pub fn extract_video_id(raw: &str) -> String {
     }
     if is_donghuastream_host(&host) {
         return format!("dhs-{}", digest(value));
+    }
+    if is_animekhor_host(&host) {
+        return format!("ak-{}", digest(value));
     }
     if is_dailymotion_host(&host)
         && let Some(captures) = dailymotion_regex().captures(value)
@@ -180,6 +189,8 @@ pub fn archive_tag(raw: &str) -> &'static str {
         "animecube"
     } else if is_donghuastream_host(&host) {
         "donghuastream"
+    } else if is_animekhor_host(&host) {
+        "animekhor"
     } else if is_dailymotion_host(&host) {
         "dailymotion"
     } else {
@@ -193,6 +204,8 @@ pub fn archive_tag_for_id(video_id: &str) -> &'static str {
         "animecube"
     } else if video_id.starts_with("dhs-") {
         "donghuastream"
+    } else if video_id.starts_with("ak-") {
+        "animekhor"
     } else if video_id.starts_with("dm-") {
         "dailymotion"
     } else if video_id.starts_with("web-") {
@@ -247,6 +260,8 @@ mod tests {
 
         let donghua = extract_video_id("https://donghuastream.org/watch/abc");
         assert!(donghua.starts_with("dhs-"));
+        let khor = extract_video_id("https://animekhor.org/renegade-immortal-episode-1/");
+        assert!(khor.starts_with("ak-"));
         let web = extract_video_id("https://example.com/v/1");
         assert!(web.starts_with("web-"));
         assert_eq!(extract_video_id("not a url"), "not a url");
@@ -298,6 +313,10 @@ mod tests {
             archive_tag_for_id(&extract_video_id(donghua)),
             "donghuastream"
         );
+
+        let khor = "https://animekhor.org/watch/x";
+        assert_eq!(archive_tag(khor), "animekhor");
+        assert_eq!(archive_tag_for_id(&extract_video_id(khor)), "animekhor");
 
         let daily = "https://www.dailymotion.com/video/x8abc12";
         assert_eq!(archive_tag(daily), "dailymotion");
