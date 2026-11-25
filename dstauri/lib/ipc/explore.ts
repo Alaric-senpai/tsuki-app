@@ -114,7 +114,7 @@ const EMPTY_SOURCES: SourceInfo[] = [
     key: "animecube",
     label: "AnimeCube",
     available: false,
-    note: "Scraper lands in a later phase.",
+    note: "Temporarily disconnected — AnimeCube downloads are unavailable.",
   },
   {
     key: "youtube",

@@ -37,7 +37,7 @@ const SECTIONS = [
 const REPOSITORY = "https://github.com/Alaric-senpai/tsuki-app"
 const DEVELOPER = "Alaric-senpai"
 const PRIORITIES = [
-  "Derive AnimeCube's current playback endpoint so remote episodes resolve end-to-end.",
+  "AnimeCube is temporarily disconnected; connect animekhor.org as the replacement catalog source.",
   "Build the 3-step Add Series wizard once its Stitch screen is published.",
   "Verify signed release packaging on Linux (.deb, .rpm, AppImage) and Windows/macOS.",
 ]

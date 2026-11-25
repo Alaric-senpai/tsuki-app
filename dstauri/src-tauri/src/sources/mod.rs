@@ -71,7 +71,13 @@ pub fn supports(raw: &str) -> bool {
 pub async fn resolve_for_download(page_url: &str) -> Result<Option<ResolvedMedia>, AppError> {
     match source_for_url(page_url) {
         Some(donghuastream::SOURCE_KEY) => Ok(Some(donghuastream::resolve(page_url).await?)),
-        Some(animecube::SOURCE_KEY) => Ok(Some(animecube::resolve(page_url).await?)),
+        // Keep claiming the host so a raw page URL is never handed to yt-dlp,
+        // but fail before any network call: the live site no longer matches the
+        // ported scraper's playback endpoints.
+        Some(animecube::SOURCE_KEY) => Err(AppError::source_with(
+            "AnimeCube downloads are temporarily unavailable.",
+            format!("requested page: {page_url}"),
+        )),
         _ => Ok(None),
     }
 }
@@ -175,6 +181,17 @@ mod tests {
             absolute_media_url("  https://example.com/video.mp4  "),
             "https://example.com/video.mp4"
         );
+    }
+
+    #[tokio::test]
+    async fn animecube_pages_fail_with_a_friendly_error() {
+        let result = resolve_for_download("https://animecube.live/title/s45n2a5c7x").await;
+        let error = match result {
+            Ok(Some(_)) => panic!("a disconnected source must not resolve"),
+            Ok(None) => panic!("an owned but disconnected URL must not reach yt-dlp"),
+            Err(error) => error,
+        };
+        assert!(error.message().contains("temporarily unavailable"));
     }
 
     #[test]

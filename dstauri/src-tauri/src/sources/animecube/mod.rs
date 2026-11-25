@@ -6,6 +6,13 @@
 //! episode source list are AES-256-GCM blobs keyed by `sha256(obf|etag)` or
 //! `sha256(obf|version)`. All of that is resolved at *play time*; only the
 //! stable anime page URL is ever stored in the library.
+//!
+//! The source is temporarily disconnected from the UI and resolver while its
+//! playback endpoints are re-mapped. The module stays compiled (and tested) so
+//! the port is not lost; `allow(dead_code)` covers the currently unreachable
+//! resolver helpers until the source is re-enabled.
+
+#![allow(dead_code)]
 
 use std::sync::OnceLock;
 

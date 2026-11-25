@@ -52,6 +52,11 @@ pub fn explore_sources(state: tauri::State<'_, crate::state::AppState>) -> Vec<S
     let youtube_enabled = config
         .as_ref()
         .is_some_and(|value| value.youtube.enabled && !value.youtube.api_key.trim().is_empty());
+    source_infos(youtube_enabled)
+}
+
+/// Pure source list so the availability contract can be unit-tested.
+fn source_infos(youtube_enabled: bool) -> Vec<SourceInfo> {
     vec![
         SourceInfo {
             key: "donghuastream".to_string(),
@@ -62,8 +67,8 @@ pub fn explore_sources(state: tauri::State<'_, crate::state::AppState>) -> Vec<S
         SourceInfo {
             key: "animecube".to_string(),
             label: "AnimeCube".to_string(),
-            available: true,
-            note: "No account needed.".to_string(),
+            available: false,
+            note: "Temporarily disconnected — AnimeCube downloads are unavailable.".to_string(),
         },
         SourceInfo {
             key: "youtube".to_string(),
@@ -80,9 +85,7 @@ pub fn explore_sources(state: tauri::State<'_, crate::state::AppState>) -> Vec<S
 
 fn ensure_source(source: &str) -> Result<(), AppError> {
     let source = source.trim();
-    if source.eq_ignore_ascii_case("donghuastream")
-        || source.eq_ignore_ascii_case(animecube::SOURCE_KEY)
-    {
+    if source.eq_ignore_ascii_case("donghuastream") {
         Ok(())
     } else {
         Err(AppError::source_with(
@@ -299,4 +302,27 @@ pub async fn import_source_series(
     }
 
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn source_infos_mark_animecube_unavailable() {
+        let sources = source_infos(true);
+        let cube = sources
+            .iter()
+            .find(|source| source.key == animecube::SOURCE_KEY)
+            .expect("animecube entry");
+        assert!(!cube.available);
+        assert!(cube.note.contains("unavailable"));
+    }
+
+    #[test]
+    fn animecube_is_no_longer_an_allowed_source() {
+        assert!(ensure_source("donghuastream").is_ok());
+        assert!(ensure_source("animecube").is_err());
+        assert!(ensure_source("youtube").is_err());
+    }
 }

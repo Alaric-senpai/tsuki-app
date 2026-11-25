@@ -27,9 +27,9 @@ const SOURCES = [
   },
   {
     name: "AnimeCube",
-    description: "Browse the catalog and pick the episodes you want.",
-    status: "Ready",
-    tone: "active" as const,
+    description: "Temporarily disconnected while its playback endpoints are re-mapped.",
+    status: "Temporarily unavailable",
+    tone: "stalled" as const,
   },
   {
     name: "DonghuaStream",
