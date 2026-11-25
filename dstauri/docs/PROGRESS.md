@@ -375,3 +375,22 @@ wizard (needs a Stitch screen decision) → source tabs → search pagination ch
 | Add Series wizard | **blocked** | `AGENTS.md` §5 lists the Stitch screen as TBD. Need a Stitch screen or an approved fallback before building it. |
 
 Gates: `bun run typecheck` clean, `bun run lint` 0 errors (5 pre-existing `<img>` warnings), `bun run build` static export clean. Rust `cargo fmt`/`cargo check` clean; `cargo test --lib` result pending a background run at the time of writing.
+
+Follow-up hotfix (pushed `98dbefc`): the ISO-8601 duration parser spun forever on the `T` separator; 96 tests now finish in ~0.34 s.
+
+---
+
+## Phase 4 — Player (2026-11)
+
+| Item | Status | Notes |
+|---|---|---|
+| PlayerEngine contract | done | `lib/player/engine.ts`: `PlayableSource`, events, `PlayerStatus`, `EnginePreference`, `PlayerEngineUnavailable`, `formatTime`. |
+| Adapters | done | `lib/player/adapters/{html-video,external,mpv}.ts`; `createEngine()` in `lib/player/index.ts` honours `player.engine` and falls back from unavailable mpv to the external adapter. |
+| Shared components | done | `components/player/{video-surface,player-controls,mini-player}.tsx`: seek bar, speed, audio/subtitle menus, fullscreen, mini-player action. |
+| Local playback | done | `/watch` uses `VideoSurface` with the configured engine, watch-progress resume, throttled saves and 90% auto-watched. |
+| Keyboard shortcuts | done | space/k play-pause, ←/→ 10 s, j/l 60 s, f fullscreen, m mute (ignored while typing). |
+| Mini player | done | Zustand store + global mount in `app/layout.tsx`; opens from both `/watch` and `/stream`. |
+| Remote playback | done (per decision) | `/stream` keeps `PlayerSurface` (react-player) for host compatibility; see `docs/decisions/player.md`. |
+| Header-bearing HLS proxy / capability probe | deferred | Explicitly documented in `docs/decisions/player.md`; no source currently needs custom headers. |
+
+Gates: `bun run typecheck` clean, `bun run lint` 0 errors (8 warnings: 5 pre-existing `<img>`, 3 `exhaustive-deps` in `video-surface.tsx`), `bun run build` static export clean.

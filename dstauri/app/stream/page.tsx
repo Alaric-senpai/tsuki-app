@@ -2,14 +2,16 @@
 
 import { Suspense, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
-import { RadioIcon } from "lucide-react"
+import { Minimize2Icon, RadioIcon } from "lucide-react"
 
 import { ErrorPanel, LoadingGrid } from "@/components/common/data-state"
 import { EmptyState } from "@/components/common/empty-state"
 import { PageHeader } from "@/components/common/page-header"
 import { PlayerSurface } from "@/components/player/player-surface"
+import { Button } from "@/components/ui/button"
 import { useAsyncResource } from "@/hooks/use-async-resource"
 import { EMPTY_PLAYABLE, resolvePlayable } from "@/lib/ipc/player"
+import { useMiniPlayer } from "@/stores/mini-player"
 
 function OnlinePlayer() {
   const params = useSearchParams()
@@ -21,6 +23,7 @@ function OnlinePlayer() {
     [pageUrl],
   )
   const playable = useAsyncResource(load, EMPTY_PLAYABLE)
+  const mini = useMiniPlayer()
 
   return (
     <div className="space-y-6">
@@ -29,11 +32,31 @@ function OnlinePlayer() {
         title={title}
         description="Online playback · the source link is resolved when you open it."
         actions={
-          playable.data?.source ? (
-            <span className="telemetry rounded-md bg-surface-high px-2 py-1 text-[0.6rem] uppercase tracking-wide text-muted-foreground">
-              {playable.data.source}
-              {playable.data.isHls ? " · HLS" : ""}
-            </span>
+          playable.data?.url ? (
+            <>
+              <span className="telemetry rounded-md bg-surface-high px-2 py-1 text-[0.6rem] uppercase tracking-wide text-muted-foreground">
+                {playable.data.source}
+                {playable.data.isHls ? " · HLS" : ""}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  mini.open(
+                    {
+                      kind: "stream",
+                      url: playable.data.url,
+                      title,
+                      isHls: playable.data.isHls,
+                    },
+                    title,
+                  )
+                }
+              >
+                <Minimize2Icon />
+                Mini player
+              </Button>
+            </>
           ) : undefined
         }
       />

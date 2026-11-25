@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Geist, JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google"
 
 import { ExternalLinkGuard } from "@/components/external-link-guard"
+import { MiniPlayer } from "@/components/player/mini-player"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/sonner"
@@ -58,6 +59,7 @@ export default function RootLayout({
               <ExternalLinkGuard />
               {children}
             </div>
+            <MiniPlayer />
             <Toaster position="bottom-right" richColors closeButton />
           </TooltipProvider>
           </AppShell>
