@@ -416,3 +416,22 @@ Release decision: v1.1.1 (option A) — the remote v1.1.0 tag at legacy commit f
 ### Pending for 1.1.2
 
 - Streamplay.co.in embeds are blocked in 1.1.1 with an actionable message while a resolver is developed; yt-dlp cannot extract them and the metadata endpoint returns an empty body. Other sources (DonghuaStream, animekhor, Dailymotion, opt-in YouTube) work.
+
+## v1.1.1 release process
+
+| Item | Status | Notes |
+|---|---|---|
+| Version surfaces | done | `1.1.1` in `tauri.conf.json`, `Cargo.toml`, `Cargo.lock`, `package.json`, sidebar/About UI, and `release.yml`. |
+| Zero-warning frontend gates | done | `<Image unoptimized>` + remote patterns replaced all `<img>` warnings; `usePlayer` values stabilized; `bun run lint` has 0 warnings. |
+| DonghuaStream pagination 404 | done | `/anime/pagg/{n}/` → `/anime/page/{n}/`, covered by a regression test. |
+| Downloader diagnostics | done | Protocol-relative media URLs are absolutized; real yt-dlp `ERROR:` lines surface as the user-facing message; duplicate enqueues are rejected. |
+| Mini-player playback error | done | `NotSupportedError` is caught, emitted as an engine error, and toasted instead of producing an unhandled rejection. |
+| AnimeCube disconnect | done | Source card marked unavailable; resolver fails with a friendly error instead of handing raw URLs to yt-dlp. |
+| animekhor.org source | done | Catalog/details/search, episode parsing, Dailymotion playback resolution, `ak-*` media ids, Explore + settings wiring, fixture tests. |
+| Bulk download actions | done | `cancel_all_downloads` and `unqueue_downloads` commands + IPC + UI buttons; queued DB rows reset to `not_started`. |
+| READMEs | done | Root README rewritten for Tsuki v1.1.1; legacy README preserved under `docs/legacy/README.md`. |
+| Local font bundling | done | Geist / Plus Jakarta Sans / JetBrains Mono woff2 files bundled with OFL licenses; no Google Fonts requests at runtime. |
+| Streamplay | shelved | Blocked with an actionable "pending development" error in 1.1.1; resolver planned for 1.1.2. |
+| Local packaging build | deferred to CI | Fedora host was missing `rpmbuild` and `dpkg-deb`; per user direction, CI builds the release artifacts and local verification is deferred. Windows NSIS and macOS DMG cannot be cross-built on Linux. Tag pushes do not trigger `ci.yml`; `release.yml` handles tagged releases. |
+
+Tag: `v1.1.1` (remote `v1.1.0` on the legacy commit is preserved).
