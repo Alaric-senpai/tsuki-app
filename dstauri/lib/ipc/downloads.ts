@@ -7,6 +7,7 @@ import { ipcCall } from "./client"
 /** Lifecycle states emitted by the Rust download queue. */
 export type DownloadPhase =
   | "queued"
+  | "paused"
   | "resolving"
   | "downloading"
   | "retrying"
@@ -63,6 +64,39 @@ export function enqueueEpisodeDownload(
 
 export function cancelEpisodeDownload(episodeId: number): Promise<void> {
   return ipcCall<void>("cancel_episode_download", undefined, { episodeId })
+}
+
+/**
+ * Pause one episode. A running job is stopped but keeps its partial files;
+ * a queued one stays in line and is skipped until resumed.
+ */
+export function pauseEpisodeDownload(episodeId: number): Promise<void> {
+  return ipcCall<void>("pause_episode_download", undefined, { episodeId })
+}
+
+/** Put a paused episode back at the head of the line. */
+export function resumeEpisodeDownload(episodeId: number): Promise<void> {
+  return ipcCall<void>("resume_episode_download", undefined, { episodeId })
+}
+
+/** Move a waiting episode earlier (`-1`) or later (`1`) in the start order. */
+export function moveDownloadInQueue(
+  episodeId: number,
+  direction: -1 | 1,
+): Promise<void> {
+  return ipcCall<void>("move_download_in_queue", undefined, {
+    episodeId,
+    direction,
+  })
+}
+
+/** Hold the whole queue: running jobs finish, nothing new starts. */
+export function setDownloadsPaused(paused: boolean): Promise<void> {
+  return ipcCall<void>("pause_downloads", undefined, { paused })
+}
+
+export function downloadsPaused(): Promise<boolean> {
+  return ipcCall<boolean>("downloads_paused", false)
 }
 
 /**

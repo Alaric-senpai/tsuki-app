@@ -8,10 +8,15 @@ import {
   cancelEpisodeDownload,
   clearDownloadQueue,
   downloadQueue,
+  downloadsPaused,
   enqueueEpisodeDownload,
   listenDownloadConsole,
   listenDownloadState,
+  moveDownloadInQueue,
+  pauseEpisodeDownload,
   removeFromQueue,
+  resumeEpisodeDownload,
+  setDownloadsPaused,
   type DownloadSnapshot,
 } from "@/lib/ipc/downloads"
 
@@ -21,9 +26,15 @@ export interface DownloadQueue {
   rows: DownloadSnapshot[]
   consoleLines: Record<number, string[]>
   loading: boolean
+  /** True while the whole queue is held. */
+  paused: boolean
   error: AppIpcError | null
   start: (episodeId: number) => Promise<DownloadSnapshot>
   cancel: (episodeId: number) => Promise<void>
+  pause: (episodeId: number) => Promise<void>
+  resume: (episodeId: number) => Promise<void>
+  move: (episodeId: number, direction: -1 | 1) => Promise<void>
+  setPaused: (paused: boolean) => Promise<void>
   /** Stop a job (if running) and drop its row entirely. */
   remove: (episodeId: number) => Promise<boolean>
   clear: () => Promise<void>
@@ -38,6 +49,7 @@ export function useDownloadQueue(): DownloadQueue {
   const [snapshots, setSnapshots] = useState<Record<number, DownloadSnapshot>>({})
   const [consoleLines, setConsoleLines] = useState<Record<number, string[]>>({})
   const [loading, setLoading] = useState(true)
+  const [paused, setPaused] = useState(false)
   const [error, setError] = useState<AppIpcError | null>(null)
   const mounted = useRef(true)
 
@@ -45,6 +57,10 @@ export function useDownloadQueue(): DownloadQueue {
     mounted.current = true
     let unlistenState: UnlistenFn | undefined
     let unlistenConsole: UnlistenFn | undefined
+
+    downloadsPaused()
+      .then(setPaused)
+      .catch(() => setPaused(false))
 
     downloadQueue()
       .then((rows) => {
@@ -158,6 +174,47 @@ export function useDownloadQueue(): DownloadQueue {
     }
   }, [])
 
+  const pause = useCallback(async (episodeId: number) => {
+    try {
+      await pauseEpisodeDownload(episodeId)
+    } catch (cause) {
+      const appError = toAppIpcError(cause)
+      setError(appError)
+      throw appError
+    }
+  }, [])
+
+  const resume = useCallback(async (episodeId: number) => {
+    try {
+      await resumeEpisodeDownload(episodeId)
+    } catch (cause) {
+      const appError = toAppIpcError(cause)
+      setError(appError)
+      throw appError
+    }
+  }, [])
+
+  const move = useCallback(async (episodeId: number, direction: -1 | 1) => {
+    try {
+      await moveDownloadInQueue(episodeId, direction)
+    } catch (cause) {
+      const appError = toAppIpcError(cause)
+      setError(appError)
+      throw appError
+    }
+  }, [])
+
+  const setQueuePaused = useCallback(async (next: boolean) => {
+    try {
+      await setDownloadsPaused(next)
+      setPaused(next)
+    } catch (cause) {
+      const appError = toAppIpcError(cause)
+      setError(appError)
+      throw appError
+    }
+  }, [])
+
   const clearError = useCallback(() => setError(null), [])
 
   const rows = useMemo(
@@ -170,9 +227,14 @@ export function useDownloadQueue(): DownloadQueue {
     rows,
     consoleLines,
     loading,
+    paused,
     error,
     start,
     cancel,
+    pause,
+    resume,
+    move,
+    setPaused: setQueuePaused,
     remove,
     clear,
     clearError,

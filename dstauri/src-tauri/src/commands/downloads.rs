@@ -158,6 +158,48 @@ pub fn cancel_episode_download(
     Ok(())
 }
 
+/// Hold the whole queue: running jobs continue, no new ones start.
+#[tauri::command]
+pub fn pause_downloads(state: State<'_, AppState>, paused: bool) -> Result<(), AppError> {
+    state.downloads().pause_all(paused);
+    Ok(())
+}
+
+/// Whether new downloads are currently held.
+#[tauri::command]
+pub fn downloads_paused(state: State<'_, AppState>) -> Result<bool, AppError> {
+    Ok(state.downloads().is_paused())
+}
+
+/// Pause one episode, keeping its partial files. Works for queued and running jobs.
+#[tauri::command]
+pub fn pause_episode_download(state: State<'_, AppState>, episode_id: i64) -> Result<(), AppError> {
+    state.downloads().pause_job(episode_id);
+    state.notify_library_changed();
+    Ok(())
+}
+
+/// Put a paused episode back at the head of the line.
+#[tauri::command]
+pub fn resume_episode_download(
+    state: State<'_, AppState>,
+    episode_id: i64,
+) -> Result<(), AppError> {
+    state.downloads().resume_job(episode_id);
+    Ok(())
+}
+
+/// Move a waiting episode earlier (`-1`) or later (`1`) in the start order.
+#[tauri::command]
+pub fn move_download_in_queue(
+    state: State<'_, AppState>,
+    episode_id: i64,
+    direction: i8,
+) -> Result<(), AppError> {
+    state.downloads().reorder(episode_id, direction);
+    Ok(())
+}
+
 /// Every job the queue knows about in this session.
 #[tauri::command]
 pub fn download_queue(state: State<'_, AppState>) -> Result<Vec<DownloadSnapshot>, AppError> {

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
-import { DownloadIcon } from "lucide-react"
+import { DownloadIcon, PauseIcon, PlayIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { ErrorPanel } from "@/components/common/data-state"
@@ -21,7 +21,7 @@ import {
 } from "@/hooks/use-library"
 import { formatBytes, formatEta, formatSpeed } from "@/lib/utils"
 
-const ACTIVE_PHASES = new Set(["queued", "resolving", "downloading", "retrying"])
+const ACTIVE_PHASES = new Set(["queued", "paused", "resolving", "downloading", "retrying"])
 
 function SectionTitle({
   children,
@@ -178,6 +178,17 @@ export default function DownloadsPage() {
     })
   }
 
+  const toggleQueue = () => {
+    const next = !queue.paused
+    toast.promise(queue.setPaused(next), {
+      loading: next ? "Pausing the queue…" : "Resuming the queue…",
+      success: next
+        ? "Downloads paused — running jobs will finish"
+        : "Downloads resumed",
+      error: "Could not change the queue state",
+    })
+  }
+
   const clearFinishedJobs = () => {
     void queue.clear().then(() =>
       toast.success("Cleared finished downloads", {
@@ -277,6 +288,18 @@ export default function DownloadsPage() {
           <SectionTitle
             actions={
               <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleQueue}
+                >
+                  {queue.paused ? (
+                    <PlayIcon className="size-3.5" />
+                  ) : (
+                    <PauseIcon className="size-3.5" />
+                  )}
+                  {queue.paused ? "Resume queue" : "Pause queue"}
+                </Button>
                 {active.length > 0 ? (
                   <Button
                     variant="outline"
@@ -337,6 +360,15 @@ export default function DownloadsPage() {
                   consoleLines={queue.consoleLines[snapshot.episodeId]}
                   onCancel={(episodeId) => {
                     void queue.cancel(episodeId)
+                  }}
+                  onPause={(episodeId) => {
+                    void queue.pause(episodeId)
+                  }}
+                  onResume={(episodeId) => {
+                    void queue.resume(episodeId)
+                  }}
+                  onMove={(episodeId, direction) => {
+                    void queue.move(episodeId, direction)
                   }}
                 />
               ))}

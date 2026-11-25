@@ -1,6 +1,6 @@
 "use client"
 
-import { DownloadIcon, XIcon } from "lucide-react"
+import { ArrowDownIcon, ArrowUpIcon, DownloadIcon, PauseIcon, PlayIcon, XIcon } from "lucide-react"
 
 import { ConsoleView } from "@/components/common/console-view"
 import { ErrorPanel } from "@/components/common/data-state"
@@ -11,9 +11,11 @@ import type { DownloadSnapshot } from "@/lib/ipc/downloads"
 import { cn, formatBytes, formatEta, formatSpeed } from "@/lib/utils"
 
 const ACTIVE_STATES = new Set(["queued", "resolving", "downloading", "retrying"])
+const WAITING_STATES = new Set(["queued", "paused"])
 
 const PHASE_META: Record<string, { tone: StatusTone; label: string }> = {
   queued: { tone: "buffering", label: "QUEUED" },
+  paused: { tone: "buffering", label: "PAUSED" },
   resolving: { tone: "buffering", label: "RESOLVING" },
   downloading: { tone: "active", label: "DOWNLOADING" },
   retrying: { tone: "stalled", label: "RETRYING" },
@@ -37,11 +39,17 @@ export function DownloadQueueItem({
   snapshot,
   consoleLines = [],
   onCancel,
+  onPause,
+  onResume,
+  onMove,
   className,
 }: {
   snapshot: DownloadSnapshot
   consoleLines?: string[]
   onCancel?: (episodeId: number) => void
+  onPause?: (episodeId: number) => void
+  onResume?: (episodeId: number) => void
+  onMove?: (episodeId: number, direction: -1 | 1) => void
   className?: string
 }) {
   const meta = phaseMeta(snapshot)
@@ -85,7 +93,47 @@ export function DownloadQueueItem({
           </p>
         </div>
         <StatusChip tone={meta.tone} label={meta.label} />
-        {active && onCancel ? (
+        {WAITING_STATES.has(snapshot.state) && onMove ? (
+          <>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label={`Start ${snapshot.title} earlier`}
+              onClick={() => onMove(snapshot.episodeId, -1)}
+            >
+              <ArrowUpIcon />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label={`Start ${snapshot.title} later`}
+              onClick={() => onMove(snapshot.episodeId, 1)}
+            >
+              <ArrowDownIcon />
+            </Button>
+          </>
+        ) : null}
+        {snapshot.state === "paused" && onResume ? (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Resume download of ${snapshot.title}`}
+            onClick={() => onResume(snapshot.episodeId)}
+          >
+            <PlayIcon />
+          </Button>
+        ) : null}
+        {active && onPause ? (
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Pause download of ${snapshot.title}`}
+            onClick={() => onPause(snapshot.episodeId)}
+          >
+            <PauseIcon />
+          </Button>
+        ) : null}
+        {(active || snapshot.state === "paused") && onCancel ? (
           <Button
             variant="ghost"
             size="icon-xs"
@@ -97,7 +145,7 @@ export function DownloadQueueItem({
         ) : null}
       </div>
 
-      {active || snapshot.state === "done" ? (
+      {active || snapshot.state === "paused" || snapshot.state === "done" ? (
         <ProgressBar
           value={percent}
           label={`${Math.round(percent)}%`}
