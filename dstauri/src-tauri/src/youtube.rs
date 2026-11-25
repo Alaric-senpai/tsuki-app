@@ -90,8 +90,9 @@ pub fn duration_seconds(raw: &str) -> i64 {
             'H' => value * 3_600,
             'M' => value * 60,
             'S' => value,
-            // T is a separator; anything else makes the value unusable.
-            'T' => continue,
+            // T is a separator with no numeric component. It still has to
+            // advance the cursor: `continue` here loops on `PT…` forever.
+            'T' => 0,
             _ => return 0,
         };
         index += 1;
