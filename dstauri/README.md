@@ -1,21 +1,24 @@
-# Next.js template
+# Tsuki (Tauri app)
 
-This is a Next.js template with shadcn/ui.
+This directory contains the Tauri v2 + Rust + Next.js rewrite of Donghua Stream.
+See the [root README](../README.md) for installation, configuration, build
+instructions, and the project disclaimer.
 
-## Adding components
-
-To add components to your app, run the following command:
+Quick start:
 
 ```bash
-npx shadcn@latest add button
+bun install --frozen-lockfile
+bun run sidecars
+bun run tauri dev
 ```
 
-This will place the ui components in the `components` directory.
+Quality gates:
 
-## Using components
-
-To use the components in your app, import them as follows:
-
-```tsx
-import { Button } from "@/components/ui/button";
+```bash
+bun run typecheck && bun run lint && bun run test && bun run build
+cd src-tauri && cargo fmt --all -- --check && cargo clippy --all-targets -- -D warnings && cargo test
 ```
+
+The UI is a static Next.js export; all filesystem, network, database, and
+process work happens in Rust commands. Add shadcn components with
+`bunx shadcn@latest` — do not hand-edit `components/ui/`.
