@@ -329,3 +329,32 @@ as part of Donghua-stream. It was merged into the base repo as a subtree:
 - Frontend tests: vitest + Testing Library, 3 files / 20 tests
   (`lib/utils.test.ts`, `lib/ipc/client.test.ts`, `lib/ipc/watch-progress.test.ts`).
 - `docs/decisions/player.md` records the accepted player engine decision.
+
+---
+
+## Phase 2 — complete (this session)
+
+| Item | Status |
+|---|---|
+| yt-dlp driver, retry budget, archive, events, queue, per-series overrides | already done |
+| Bundled `yt-dlp` + `ffmpeg` sidecars (`externalBin`, `scripts/fetch-sidecars.sh`) | done |
+| Pause / resume (queue-wide + per job, survives restart via `not_started`) | done |
+| Priority reorder (`move_download_in_queue`, arrow controls) | done |
+| Disk-usage scan (`scan_disk_usage`, per-series sizes, updater button) | done |
+| yt-dlp updater (`update_ytdlp`, stores version in config) | done |
+| Split `app/downloads/page.tsx` (448 → 256 lines, composed sections) | done |
+| Typed IPC bindings → **ts-rs** (tauri-specta is still 2.0.0-rc) | done |
+
+Rust: 78 unit tests pass; `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings` clean.
+Frontend: `tsc --noEmit`, `bun run lint` (0 errors, 4 pre-existing `<img>` warnings) and `bun run build` (static export) clean.
+
+`ts-rs` exports into `lib/ipc/bindings/` during `cargo test`. `WatchProgress`,
+`SeriesUsage` and `DiskUsage` wrappers consume the generated types.
+`DownloadSnapshot.state` stays a hand-written literal union and `AppError` has a
+custom `Serialize` impl — both are intentional exceptions documented in
+`lib/ipc/bindings/index.ts`.
+
+### Phase 3 next
+YouTube client (search + disk cache, no API call on Explore mount) → AnimeCube
+scraper (RSC payload + decryption, fixture tests) → `/show` route → Add Series
+wizard (needs a Stitch screen decision) → source tabs → search pagination check.
