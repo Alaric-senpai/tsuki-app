@@ -11,7 +11,7 @@ pub mod queue;
 pub mod updater;
 pub mod ytdlp;
 
-pub use queue::{DownloadManager, DownloadSnapshot, Job, TRAY_ID};
+pub use queue::{DownloadManager, DownloadSnapshot, Job, TRAY_ID, clamp_concurrency};
 
 /// Values the UI uses to mean "do not import browser cookies".
 const DISABLED_BROWSERS: [&str; 6] = ["", "none", "no", "off", "disabled", "false"];

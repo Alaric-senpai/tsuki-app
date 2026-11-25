@@ -66,6 +66,7 @@ const CONCURRENCY_OPTIONS: readonly SelectOption[] = [
   { value: "4", label: "4 at once" },
   { value: "6", label: "6 at once" },
   { value: "8", label: "8 at once" },
+  { value: "custom", label: "Custom…" },
 ]
 const UPDATE_SOURCE_OPTIONS: readonly SelectOption[] = [
   { value: "donghuastream", label: "DonghuaStream" },
@@ -206,17 +207,31 @@ export function SettingsPanel() {
     },
     {
       key: "concurrent_downloads",
-      title: "Concurrent downloads",
-      description: "Sequential queue size used for preparation work.",
-      label: "Tasks",
+      title: "Custom concurrency",
+      description: "Any value from 1 to 64; the running queue updates immediately.",
+      label: "Tasks downloading at once",
       value: flat("concurrent_downloads"),
       type: "number",
       min: 1,
       step: 1,
       onSave: (value) => {
-        if (numeric(value) !== null) {
-          saveFlat("concurrent_downloads")(value)
+        const parsed = numeric(value)
+        if (parsed === null || !Number.isInteger(parsed)) {
+          toast.error("Enter a whole number of 1 or more")
+          return
         }
+        void setDownloadConcurrency(parsed)
+          .then((applied) => {
+            toast.success("Download concurrency updated", {
+              description: `${applied} at once`,
+            })
+            config.refresh()
+          })
+          .catch((error: unknown) => {
+            toast.error("Could not change concurrency", {
+              description: String(error),
+            })
+          })
       },
     },
     {
@@ -342,10 +357,14 @@ export function SettingsPanel() {
               value={flat("concurrent_downloads")}
               options={CONCURRENCY_OPTIONS}
               onChange={(value) => {
+                if (value === "custom") {
+                  setDialogKey("concurrent_downloads")
+                  return
+                }
                 void setDownloadConcurrency(Number(value))
-                  .then(() => {
+                  .then((applied) => {
                     toast.success("Download concurrency updated", {
-                      description: `${value} at once`,
+                      description: `${applied} at once`,
                     })
                     config.refresh()
                   })
@@ -411,12 +430,6 @@ export function SettingsPanel() {
               value={flat("per_series_subfolder")}
               options={FOLDER_OPTIONS}
               onChange={(value) => void config.saveSetting("per_series_subfolder", value)}
-              busy={busy}
-            />
-            <SettingRow
-              label="Concurrent downloads"
-              value={flat("concurrent_downloads")}
-              onEdit={() => setDialogKey("concurrent_downloads")}
               busy={busy}
             />
             <SelectSettingRow

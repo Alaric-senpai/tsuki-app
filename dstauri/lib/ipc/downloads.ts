@@ -179,7 +179,17 @@ export async function listenDownloadConsole(
   )
 }
 
-/** Change how many downloads run at once (persisted, 1–16). */
+/** A queue row was dropped (cleared by the user or after a terminal state). */
+export async function listenDownloadRemoved(
+  handler: (episodeId: number) => void,
+): Promise<UnlistenFn> {
+  if (!isTauri()) {
+    return () => {}
+  }
+  return listen<number>("download://removed", (event) => handler(event.payload))
+}
+
+/** Change how many downloads run at once (persisted, 1–64). */
 export function setDownloadConcurrency(limit: number): Promise<number> {
   return ipcCall<number>("set_download_concurrency", 3, { limit })
 }

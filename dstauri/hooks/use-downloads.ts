@@ -5,12 +5,19 @@ import type { UnlistenFn } from "@tauri-apps/api/event"
 
 import { toAppIpcError, type AppIpcError } from "@/lib/ipc/client"
 import {
+  applyClearedIds,
+  applyDownloadState,
+  applyRemovedId,
+  type SnapshotMap,
+} from "@/lib/ipc/download-events"
+import {
   cancelEpisodeDownload,
   clearDownloadQueue,
   downloadQueue,
   downloadsPaused,
   enqueueEpisodeDownload,
   listenDownloadConsole,
+  listenDownloadRemoved,
   listenDownloadState,
   moveDownloadInQueue,
   pauseEpisodeDownload,
@@ -46,17 +53,20 @@ export interface DownloadQueue {
  * `download://state` / `download://console` events keep it current.
  */
 export function useDownloadQueue(): DownloadQueue {
-  const [snapshots, setSnapshots] = useState<Record<number, DownloadSnapshot>>({})
+  const [snapshots, setSnapshots] = useState<SnapshotMap>({})
   const [consoleLines, setConsoleLines] = useState<Record<number, string[]>>({})
   const [loading, setLoading] = useState(true)
   const [paused, setPaused] = useState(false)
   const [error, setError] = useState<AppIpcError | null>(null)
   const mounted = useRef(true)
+  /** Ids whose rows were cleared; late state events for them are ignored. */
+  const cleared = useRef(new Set<number>())
 
   useEffect(() => {
     mounted.current = true
     let unlistenState: UnlistenFn | undefined
     let unlistenConsole: UnlistenFn | undefined
+    let unlistenRemoved: UnlistenFn | undefined
 
     downloadsPaused()
       .then(setPaused)
@@ -83,9 +93,24 @@ export function useDownloadQueue(): DownloadQueue {
       })
 
     void listenDownloadState((snapshot) => {
-      setSnapshots((current) => ({ ...current, [snapshot.episodeId]: snapshot }))
+      setSnapshots((current) => applyDownloadState(current, snapshot, cleared.current))
     }).then((unlisten) => {
       unlistenState = unlisten
+    })
+
+    void listenDownloadRemoved((episodeId) => {
+      cleared.current.add(episodeId)
+      setSnapshots((current) => applyRemovedId(current, episodeId))
+      setConsoleLines((current) => {
+        if (!(episodeId in current)) {
+          return current
+        }
+        const next = { ...current }
+        delete next[episodeId]
+        return next
+      })
+    }).then((unlisten) => {
+      unlistenRemoved = unlisten
     })
 
     void listenDownloadConsole((line) => {
@@ -104,10 +129,12 @@ export function useDownloadQueue(): DownloadQueue {
       mounted.current = false
       unlistenState?.()
       unlistenConsole?.()
+      unlistenRemoved?.()
     }
   }, [])
 
   const start = useCallback(async (episodeId: number) => {
+    cleared.current.delete(episodeId)
     try {
       const snapshot = await enqueueEpisodeDownload(episodeId)
       setSnapshots((current) => ({ ...current, [episodeId]: snapshot }))
@@ -129,6 +156,7 @@ export function useDownloadQueue(): DownloadQueue {
   }, [])
 
   const remove = useCallback(async (episodeId: number) => {
+    cleared.current.add(episodeId)
     try {
       const known = await removeFromQueue(episodeId)
       setSnapshots((current) => {
@@ -156,18 +184,12 @@ export function useDownloadQueue(): DownloadQueue {
 
   const clear = useCallback(async () => {
     try {
-      const cleared = await clearDownloadQueue()
-      const dropped = new Set(cleared)
-      setSnapshots((current) =>
-        Object.fromEntries(
-          Object.entries(current).filter(([id]) => !dropped.has(Number(id))),
-        ),
-      )
-      setConsoleLines((current) =>
-        Object.fromEntries(
-          Object.entries(current).filter(([id]) => !dropped.has(Number(id))),
-        ),
-      )
+      const clearedIds = await clearDownloadQueue()
+      for (const id of clearedIds) {
+        cleared.current.add(id)
+      }
+      setSnapshots((current) => applyClearedIds(current, clearedIds))
+      setConsoleLines((current) => applyClearedIds(current, clearedIds))
     } catch (cause) {
       setError(toAppIpcError(cause))
       throw toAppIpcError(cause)

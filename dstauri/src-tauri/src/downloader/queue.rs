@@ -31,12 +31,59 @@ use super::ytdlp::{DownloadOptions, Event as YtEvent, YtDlp};
 
 pub const EVENT_STATE: &str = "download://state";
 pub const EVENT_CONSOLE: &str = "download://console";
+/// Emitted with an episode id when a queue row is dropped (cleared by the user
+/// or automatically after a terminal state). Lets the webview avoid resurrecting
+/// rows from state events that were already in flight.
+pub const EVENT_REMOVED: &str = "download://removed";
 
 /// Tray icon id, registered in `lib.rs`.
 pub const TRAY_ID: &str = "downloads";
 
 /// Snapshot states that count as an in-flight download.
 const ACTIVE_STATES: [&str; 5] = ["queued", "paused", "resolving", "downloading", "retrying"];
+
+/// Upper bound for a custom concurrency value. Large values are allowed, but
+/// an unbounded queue would exhaust the process, so the custom dialog is
+/// capped here rather than silently spawning an unlimited number of jobs.
+pub const MAX_CONCURRENCY: usize = 64;
+
+pub fn clamp_concurrency(limit: usize) -> usize {
+    limit.clamp(1, MAX_CONCURRENCY)
+}
+
+/// A job has finished (successfully or not) once it leaves the active set.
+fn is_terminal_state(state: &str) -> bool {
+    !ACTIVE_STATES.contains(&state)
+}
+
+/// Drop a queue row everywhere and tell the frontend it is gone.
+///
+/// Adding the id to `removed` also stops a worker that is still winding down
+/// from recreating the row through a late progress event.
+#[allow(clippy::too_many_arguments)]
+fn forget_snapshot(
+    app: &AppHandle,
+    snapshots: &Snapshots,
+    cancels: &Cancels,
+    paused_jobs: &PausedJobs,
+    removed: &Removed,
+    episode_id: i64,
+) {
+    if let Ok(mut map) = snapshots.lock() {
+        map.remove(&episode_id);
+    }
+    if let Ok(mut map) = cancels.lock() {
+        map.remove(&episode_id);
+    }
+    if let Ok(mut set) = paused_jobs.lock() {
+        set.remove(&episode_id);
+    }
+    if let Ok(mut set) = removed.lock() {
+        set.insert(episode_id);
+    }
+    let _ = app.emit(EVENT_REMOVED, episode_id);
+    refresh_tray(app, snapshots);
+}
 
 /// Maximum backoff between attempts (seconds).
 const MAX_BACKOFF_SECS: f64 = 30.0;
@@ -158,7 +205,7 @@ impl DownloadManager {
             worker,
             pending: VecDeque::new(),
             running: 0,
-            limit: concurrency.clamp(1, 16),
+            limit: clamp_concurrency(concurrency),
             paused: false,
             paused_jobs: Arc::clone(&paused_jobs),
             commands: commands.clone(),
@@ -337,32 +384,26 @@ impl DownloadManager {
     /// alone, and `update` can therefore never resurrect a row the user just
     /// cleared. Returns the episode ids that were removed.
     pub fn clear_finished(&self) -> Vec<i64> {
-        const ACTIVE: [&str; 5] = ["queued", "paused", "resolving", "downloading", "retrying"];
-
         let mut removed: Vec<i64> = Vec::new();
-        if let Ok(mut map) = self.snapshots.lock() {
-            map.retain(|episode_id, snapshot| {
-                if ACTIVE.contains(&snapshot.state.as_str()) {
-                    true
-                } else {
-                    removed.push(*episode_id);
-                    false
-                }
-            });
+        if let Ok(map) = self.snapshots.lock() {
+            removed = map
+                .iter()
+                .filter(|(_, snapshot)| is_terminal_state(&snapshot.state))
+                .map(|(episode_id, _)| *episode_id)
+                .collect();
         }
-        if let Ok(mut map) = self.cancels.lock() {
-            for episode_id in &removed {
-                map.remove(episode_id);
-            }
-        }
-        if let Ok(mut set) = self.paused_jobs.lock() {
-            set.retain(|episode_id| !removed.contains(episode_id));
+        for episode_id in &removed {
+            forget_snapshot(
+                &self.app,
+                &self.snapshots,
+                &self.cancels,
+                &self.paused_jobs,
+                &self.removed,
+                *episode_id,
+            );
         }
 
         removed.sort_unstable();
-        if !removed.is_empty() {
-            refresh_tray(&self.app, &self.snapshots);
-        }
         removed
     }
 }
@@ -723,12 +764,8 @@ impl Worker {
         self.console(job, format!("saved {}", path.display()));
         self.notify_complete(job);
         // Free the queue row so the next waiting job visibly takes this slot.
-        if let Ok(mut map) = self.snapshots.lock() {
-            map.remove(&job.episode_id);
-        }
-        refresh_tray(&self.app, &self.snapshots);
+        self.forget(job.episode_id);
         crate::events::library_changed(&self.app);
-        self.release_cancel(job.episode_id);
     }
 
     /// Desktop notification so a background download is not silent.
@@ -760,8 +797,10 @@ impl Worker {
             self.console(job, detail.to_string());
         }
         self.console(job, format!("failed: {message}"));
+        // Failures are terminal: drop the live row, the Failed catalog section
+        // still offers the per-episode retry action.
+        self.forget(job.episode_id);
         crate::events::library_changed(&self.app);
-        self.release_cancel(job.episode_id);
     }
 
     /// Cancel or pause a job that asked to stop.
@@ -805,8 +844,21 @@ impl Worker {
             snapshot.eta_sec = 0.0;
         });
         self.console(job, "cancelled".to_string());
+        self.forget(job.episode_id);
         crate::events::library_changed(&self.app);
-        self.release_cancel(job.episode_id);
+    }
+
+    /// Drop this job's row from every client-visible map and emit a removed
+    /// event so a late state event cannot put it back.
+    fn forget(&self, episode_id: i64) {
+        forget_snapshot(
+            &self.app,
+            &self.snapshots,
+            &self.cancels,
+            &self.paused_jobs,
+            &self.removed,
+            episode_id,
+        );
     }
 
     fn update<F>(&self, job: &Job, change: F)
@@ -938,6 +990,18 @@ pub fn purge_intermediates(save_dir: &Path, title: &str) -> std::io::Result<usiz
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn terminal_states_include_all_finished_outcomes() {
+        assert!(is_terminal_state("done"));
+        assert!(is_terminal_state("failed"));
+        assert!(is_terminal_state("cancelled"));
+        assert!(!is_terminal_state("queued"));
+        assert!(!is_terminal_state("paused"));
+        assert!(!is_terminal_state("resolving"));
+        assert!(!is_terminal_state("downloading"));
+        assert!(!is_terminal_state("retrying"));
+    }
 
     #[test]
     fn move_index_clamps_at_both_ends() {

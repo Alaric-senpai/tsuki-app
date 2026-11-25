@@ -26,6 +26,12 @@ export function SelectSettingRow({
   busy?: boolean
   hint?: string
 }) {
+  // A custom value (e.g. 12) is not one of the presets, but the trigger must
+  // still display it instead of an empty select.
+  const visibleOptions = options.some((option) => option.value === value)
+    ? options
+    : [...options, { value, label: `${value} (custom)` }]
+
   return (
     <div className="flex items-center justify-between gap-4 px-4 py-3">
       <div className="min-w-0 space-y-0.5">
@@ -45,7 +51,7 @@ export function SelectSettingRow({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {options.map((option) => (
+          {visibleOptions.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}
             </SelectItem>

@@ -7,7 +7,7 @@
 use tauri::State;
 
 use crate::db::queries;
-use crate::downloader::{self, DownloadSnapshot, Job};
+use crate::downloader::{self, DownloadSnapshot, Job, clamp_concurrency};
 use crate::error::AppError;
 use crate::state::AppState;
 
@@ -141,7 +141,7 @@ pub fn set_download_concurrency(
     state: State<'_, AppState>,
     limit: usize,
 ) -> Result<usize, AppError> {
-    let limit = limit.clamp(1, 16);
+    let limit = clamp_concurrency(limit);
     state.update_setting("concurrent_downloads", &limit.to_string())?;
     state.downloads().set_concurrency(limit);
     Ok(limit)
@@ -277,4 +277,18 @@ pub fn set_background_downloads(
     let config = state.update_setting("background_downloads", if enabled { "1" } else { "0" })?;
     state.downloads().set_background_notifications(enabled);
     Ok(config)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::clamp_concurrency;
+
+    #[test]
+    fn concurrency_accepts_custom_values_up_to_the_safe_limit() {
+        assert_eq!(clamp_concurrency(0), 1);
+        assert_eq!(clamp_concurrency(3), 3);
+        assert_eq!(clamp_concurrency(12), 12);
+        assert_eq!(clamp_concurrency(64), 64);
+        assert_eq!(clamp_concurrency(1000), 64);
+    }
 }
