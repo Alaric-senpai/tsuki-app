@@ -262,6 +262,8 @@ pub fn run() {
             commands::downloads::move_download_in_queue,
             commands::downloads::pause_downloads,
             commands::downloads::downloads_paused,
+            commands::downloads::scan_disk_usage,
+            commands::downloads::update_ytdlp,
             commands::downloads::download_queue,
             commands::downloads::clear_download_queue,
             commands::downloads::resume_downloads,

@@ -5,8 +5,10 @@
 //! `download://console` events.
 
 pub mod archive;
+pub mod disk;
 pub mod quality;
 pub mod queue;
+pub mod updater;
 pub mod ytdlp;
 
 pub use queue::{DownloadManager, DownloadSnapshot, Job, TRAY_ID};

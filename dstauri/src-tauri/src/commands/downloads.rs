@@ -158,6 +158,27 @@ pub fn cancel_episode_download(
     Ok(())
 }
 
+/// Sum the size of every series download folder.
+#[tauri::command]
+pub async fn scan_disk_usage(
+    state: State<'_, AppState>,
+) -> Result<downloader::disk::DiskUsage, AppError> {
+    downloader::disk::scan_disk_usage(state.db().pool()).await
+}
+
+/// Download a newer yt-dlp into app data (preferred over the bundled copy).
+#[tauri::command]
+pub async fn update_ytdlp(state: State<'_, AppState>) -> Result<String, AppError> {
+    if state.downloads().busy() {
+        return Err(AppError::download(
+            "Wait for the current downloads to finish before updating yt-dlp.",
+        ));
+    }
+    let version = downloader::updater::update_ytdlp(state.data_dir()).await?;
+    state.update_setting("ytdlp_version", &version)?;
+    Ok(version)
+}
+
 /// Hold the whole queue: running jobs continue, no new ones start.
 #[tauri::command]
 pub fn pause_downloads(state: State<'_, AppState>, paused: bool) -> Result<(), AppError> {

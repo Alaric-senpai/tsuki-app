@@ -183,6 +183,21 @@ impl DownloadManager {
         self.paused.load(Ordering::SeqCst)
     }
 
+    /// True while any job is running or retrying.
+    pub fn busy(&self) -> bool {
+        self.snapshots
+            .lock()
+            .map(|map| {
+                map.values().any(|snapshot| {
+                    matches!(
+                        snapshot.state.as_str(),
+                        "resolving" | "downloading" | "retrying"
+                    )
+                })
+            })
+            .unwrap_or(false)
+    }
+
     /// Pause one job. A queued job is skipped when slots free up; a running one
     /// is stopped and requeued at the head, keeping its partial files so yt-dlp
     /// continues instead of starting over.

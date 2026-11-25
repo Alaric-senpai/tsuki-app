@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/common/page-header"
 import { StatGrid } from "@/components/common/stat-grid"
 import { StatusChip } from "@/components/common/status-chip"
 import { ConsoleDrawer } from "@/components/features/downloads/console-drawer"
+import { DiskUsageCard } from "@/components/features/downloads/disk-usage-card"
 import { DownloadQueueItem } from "@/components/features/downloads/download-queue-item"
 import { EpisodeStatusTable } from "@/components/features/downloads/episode-status-table"
 import { NotStartedSection } from "@/components/features/downloads/not-started-section"
@@ -375,6 +376,8 @@ export default function DownloadsPage() {
             </div>
           )}
         </section>
+
+        <DiskUsageCard />
 
         <section className="space-y-3">
           <SectionTitle

@@ -36,6 +36,20 @@ export interface DownloadConsoleLine {
   line: string
 }
 
+export interface SeriesUsage {
+  seriesId: number
+  name: string
+  path: string
+  bytes: number
+  files: number
+}
+
+export interface DiskUsage {
+  series: SeriesUsage[]
+  totalBytes: number
+  totalFiles: number
+}
+
 export const EMPTY_DOWNLOAD_SNAPSHOT: DownloadSnapshot = {
   episodeId: 0,
   seriesId: 0,
@@ -97,6 +111,15 @@ export function setDownloadsPaused(paused: boolean): Promise<void> {
 
 export function downloadsPaused(): Promise<boolean> {
   return ipcCall<boolean>("downloads_paused", false)
+}
+
+export function scanDiskUsage(): Promise<DiskUsage> {
+  return ipcCall<DiskUsage>("scan_disk_usage", { series: [], totalBytes: 0, totalFiles: 0 })
+}
+
+/** Install a newer yt-dlp in app data; returns the new `--version` string. */
+export function updateYtDlp(): Promise<string> {
+  return ipcCall<string>("update_ytdlp", "")
 }
 
 /**
