@@ -131,8 +131,12 @@ export function usePlayer(
   const toggle = useCallback(async () => {
     const instance = engineRef.current
     if (!instance) return
-    if (status === "playing") await instance.pause()
-    else await instance.play()
+    try {
+      if (status === "playing") await instance.pause()
+      else await instance.play()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    }
   }, [status])
 
   const seek = useCallback(async (seconds: number) => {

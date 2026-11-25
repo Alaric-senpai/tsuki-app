@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Maximize2Icon, XIcon } from "lucide-react"
 
+import { toast } from "sonner"
+
 import { Button } from "@/components/ui/button"
 import { usePlayer } from "@/hooks/use-player"
 import { useMiniPlayer } from "@/stores/mini-player"
@@ -17,11 +19,17 @@ export function MiniPlayer() {
   const router = useRouter()
   const [video, setVideo] = useState<HTMLVideoElement | null>(null)
   const player = usePlayer(video, "auto")
-  const { engine, load } = player
+  const { engine, load, error } = player
 
   useEffect(() => {
     if (source && engine) void load(source)
   }, [source, engine, load])
+
+  useEffect(() => {
+    if (error) {
+      toast.error("Playback unavailable", { description: error })
+    }
+  }, [error])
 
   const expand = useCallback(() => {
     if (!source) return
@@ -55,7 +63,12 @@ export function MiniPlayer() {
       </div>
       <video ref={setVideo} playsInline className="aspect-video w-full bg-black" />
       <div className="flex justify-center border-t border-outline-variant/30 py-1">
-        <Button variant="ghost" size="sm" onClick={() => void player.toggle()}>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={player.status === "idle" || player.status === "loading"}
+          onClick={() => void player.toggle()}
+        >
           {player.status === "playing" ? "Pause" : "Play"}
         </Button>
       </div>

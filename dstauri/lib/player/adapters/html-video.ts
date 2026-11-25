@@ -106,7 +106,30 @@ export class HtmlVideoEngine implements PlayerEngine {
   }
 
   async play(): Promise<void> {
-    await this.video.play()
+    if (this.disposed) {
+      return
+    }
+    if (!this.video.src && !this.video.currentSrc) {
+      this.setState("error")
+      this.emit("error", { message: "No video is loaded yet." })
+      return
+    }
+    try {
+      await this.video.play()
+    } catch (cause) {
+      // WebKitGTK rejects play() with NotSupportedError for codecs its
+      // GStreamer build cannot decode. Never let that escape as an unhandled
+      // promise rejection from a button click.
+      const reason = cause instanceof Error ? cause.message : String(cause)
+      const unsupported = cause instanceof DOMException && cause.name === "NotSupportedError"
+      this.setState("error")
+      this.emit("error", {
+        message: unsupported
+          ? "Playback is not supported by this browser. Try “Open in my player”."
+          : `Playback failed: ${reason}`,
+        detail: this.video.currentSrc || this.video.src,
+      })
+    }
   }
 
   async pause(): Promise<void> {
