@@ -10,6 +10,18 @@ use crate::youtube::{YouTubeClient, YouTubeDiscovery, YouTubeRail, YouTubeVideo}
 
 fn client(state: &AppState) -> Result<YouTubeClient, AppError> {
     let config = state.config()?;
+    if !config.youtube.enabled {
+        return Err(AppError::config_with(
+            "YouTube is turned off.",
+            "Enable it in Settings → Explore sources.",
+        ));
+    }
+    if config.youtube.api_key.trim().is_empty() {
+        return Err(AppError::config_with(
+            "No YouTube API key is configured.",
+            "Add a key in Settings → YouTube.",
+        ));
+    }
     Ok(YouTubeClient::new(
         config.youtube.api_key.clone(),
         config.youtube.region_code.clone(),

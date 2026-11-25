@@ -394,3 +394,19 @@ Follow-up hotfix (pushed `98dbefc`): the ISO-8601 duration parser spun forever o
 | Header-bearing HLS proxy / capability probe | deferred | Explicitly documented in `docs/decisions/player.md`; no source currently needs custom headers. |
 
 Gates: `bun run typecheck` clean, `bun run lint` 0 errors (8 warnings: 5 pre-existing `<img>`, 3 `exhaustive-deps` in `video-surface.tsx`), `bun run build` static export clean.
+
+---
+
+## Phase 5 — Settings, packaging and polish (2026-11)
+
+| Item | Status | Notes |
+|---|---|---|
+| GitHub repo rename | done | `Donghua-stream` → `tsuki-app`; local `origin` now `https://github.com/Alaric-senpai/tsuki-app.git`. |
+| YouTube opt-in | done | `YouTubeConfig.enabled` (default false) gates both the Explore source and the IPC client; a friendly config error is shown when disabled/no key. |
+| Background downloads opt-in | done | `settings.background_downloads` (default `0`) + `set_background_downloads`; completion notifications are suppressed unless enabled. |
+| App updater | done | `app_updater.rs` checks GitHub releases, picks the matching AppImage/.deb/.rpm asset (Fedora x86_64/aarch64 included), downloads to `<app_data>/updates/` and opens the installer; Settings card exposes Check + Download & install. |
+| About screen | done | Live version via `getVersion()`, App/Runtime/Developer info cards, developer section with current priorities, repo link and the carried-forward disclaimer. |
+| Clippy cleanup | done | Collapsed-if warnings in `youtube.rs` fixed (clippy 1.98); `cargo clippy --all-targets -- -D warnings` clean. |
+| Packaging verification | pending | `release.yml` builds `appimage,deb,rpm`; local build not run here (no desktop packaging toolchain verified). |
+
+Gates: `cargo fmt --all -- --check` clean, `cargo clippy --all-targets -- -D warnings` clean, `cargo test --lib` 99 passed in 1.7 s; `bun run typecheck` clean, `bun run lint` 0 errors (9 warnings: 5 `<img>`, 4 `exhaustive-deps`), `bun run build` static export clean.

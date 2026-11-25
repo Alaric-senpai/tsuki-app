@@ -118,10 +118,11 @@ pub fn set_explore_config(
 #[tauri::command]
 pub fn set_youtube_config(
     state: State<'_, AppState>,
+    enabled: Option<bool>,
     api_key: Option<String>,
     region_code: Option<String>,
     language: Option<String>,
     safe_search: Option<String>,
 ) -> Result<Config, AppError> {
-    state.update_youtube_config(api_key, region_code, language, safe_search)
+    state.update_youtube_config(enabled, api_key, region_code, language, safe_search)
 }

@@ -31,6 +31,7 @@ pub const DEFAULT_SETTINGS: &[(&str, &str)] = &[
     ("rate_limit_mb", "0"),
     ("per_series_subfolder", "1"),
     ("concurrent_downloads", "3"),
+    ("background_downloads", "0"),
 ];
 
 pub(crate) const SAFE_SEARCH_VALUES: &[&str] = &["none", "moderate", "strict"];
@@ -38,6 +39,8 @@ pub(crate) const PLAYER_ENGINES: &[&str] = &["auto", "mpv", "html", "external"];
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct YouTubeConfig {
+    /// Opt-in: YouTube is an optional source and stays off until enabled.
+    pub enabled: bool,
     pub api_key: String,
     pub region_code: String,
     pub language: String,
@@ -105,6 +108,7 @@ pub fn normalize(raw: Value) -> Config {
     let meta_raw = section(&root, "meta");
 
     let youtube = YouTubeConfig {
+        enabled: bool_value(youtube_raw.get("enabled"), false),
         api_key: text(youtube_raw.get("api_key"), ""),
         region_code: text(youtube_raw.get("region_code"), "US").to_uppercase(),
         language: text(youtube_raw.get("language"), "en").to_lowercase(),

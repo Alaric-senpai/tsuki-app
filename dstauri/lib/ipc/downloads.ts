@@ -3,6 +3,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event"
 import { isTauri } from "@/lib/tauri"
 
 import { ipcCall } from "./client"
+import { DEFAULT_CONFIG, type AppConfig } from "./config"
 
 /** Lifecycle states emitted by the Rust download queue. */
 export type DownloadPhase =
@@ -181,6 +182,14 @@ export async function listenDownloadConsole(
 /** Change how many downloads run at once (persisted, 1–16). */
 export function setDownloadConcurrency(limit: number): Promise<number> {
   return ipcCall<number>("set_download_concurrency", 3, { limit })
+}
+
+/**
+ * Opt in to completion notifications for downloads running while the window
+ * is in the background (persisted in config).
+ */
+export function setBackgroundDownloads(enabled: boolean): Promise<AppConfig> {
+  return ipcCall<AppConfig>("set_background_downloads", DEFAULT_CONFIG, { enabled })
 }
 
 /** Catalog rows changed somewhere (download finished, import, cancel…). */

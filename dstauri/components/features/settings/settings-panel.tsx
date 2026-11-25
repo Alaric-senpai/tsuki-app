@@ -18,8 +18,9 @@ import type {
   SetPlayerConfigArgs,
   SetYouTubeConfigArgs,
 } from "@/lib/ipc/config"
-import { setDownloadConcurrency } from "@/lib/ipc/downloads"
+import { setBackgroundDownloads, setDownloadConcurrency } from "@/lib/ipc/downloads"
 
+import { AppUpdateCard } from "./app-update-card"
 import { SelectSettingRow, type SelectOption } from "./select-setting-row"
 import { SettingDialog } from "./setting-dialog"
 import { SettingRow } from "./setting-row"
@@ -149,6 +150,7 @@ export function SettingsPanel() {
     void config.refresh()
   }
   const youtubeArgs: SetYouTubeConfigArgs = {
+    enabled: config.data.youtube.enabled,
     apiKey: config.data.youtube.api_key,
     regionCode: config.data.youtube.region_code,
     language: config.data.youtube.language,
@@ -356,6 +358,23 @@ export function SettingsPanel() {
               busy={busy}
             />
             <SelectSettingRow
+              label="Background downloads (opt-in)"
+              hint="Queue keeps running; completion notifications are off until enabled"
+              value={config.data.settings.background_downloads ?? "0"}
+              options={FOLDER_OPTIONS}
+              onChange={(value) => {
+                void setBackgroundDownloads(value === "1")
+                  .then(() => {
+                    toast.success(value === "1" ? "Background notifications on" : "Background notifications off")
+                    config.refresh()
+                  })
+                  .catch((error: unknown) => {
+                    toast.error("Could not update this setting", { description: String(error) })
+                  })
+              }}
+              busy={busy}
+            />
+            <SelectSettingRow
               label="Default quality"
               value={flat("default_quality")}
               options={QUALITY_OPTIONS}
@@ -491,6 +510,16 @@ export function SettingsPanel() {
               <CardTitle className="font-heading text-base font-semibold">YouTube</CardTitle>
             </CardHeader>
             <CardContent className="divide-y divide-border/40 p-0">
+              <SelectSettingRow
+                label="Enable YouTube (opt-in)"
+                hint="Optional source; disabled until you turn it on"
+                value={config.data.youtube.enabled ? "1" : "0"}
+                options={FOLDER_OPTIONS}
+                onChange={(value) =>
+                  void config.saveYouTubeConfig({ ...youtubeArgs, enabled: value === "1" })
+                }
+                busy={busy}
+              />
               <SettingRow
                 label="API key"
                 value={config.data.youtube.api_key ? "Configured" : "Not configured"}
@@ -562,6 +591,8 @@ export function SettingsPanel() {
           </CardContent>
         </Card>
       ) : null}
+
+      <AppUpdateCard />
 
       <p className="telemetry text-[0.55rem] text-muted-foreground">
         Config version {config.data.version}

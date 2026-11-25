@@ -1,5 +1,6 @@
 //! Thin `#[tauri::command]` handlers, one module per domain.
 
+pub mod app_updater;
 pub mod config;
 pub mod downloads;
 pub mod explore;

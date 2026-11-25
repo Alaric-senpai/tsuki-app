@@ -151,12 +151,16 @@ impl AppState {
 
     pub fn update_youtube_config(
         &self,
+        enabled: Option<bool>,
         api_key: Option<String>,
         region_code: Option<String>,
         language: Option<String>,
         safe_search: Option<String>,
     ) -> Result<Config, AppError> {
         self.update_config(|config| {
+            if let Some(value) = enabled {
+                config.youtube.enabled = value;
+            }
             if let Some(value) = api_key {
                 config.youtube.api_key = value.trim().to_string();
             }

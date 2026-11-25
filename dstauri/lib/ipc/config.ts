@@ -1,6 +1,8 @@
 import { ipcCall } from "./client"
 
 export interface YouTubeConfig {
+  /** Opt-in: the YouTube source is disabled until the user enables it. */
+  enabled: boolean
   api_key: string
   region_code: string
   language: string
@@ -38,6 +40,7 @@ export interface SetExploreConfigArgs {
 }
 
 export interface SetYouTubeConfigArgs {
+  enabled: boolean
   apiKey: string
   regionCode: string
   language: string
@@ -64,6 +67,7 @@ export interface AppConfig {
 export const DEFAULT_CONFIG: AppConfig = {
   version: 3,
   youtube: {
+    enabled: false,
     api_key: "",
     region_code: "US",
     language: "en",
@@ -134,6 +138,7 @@ export function setExploreConfig(args: SetExploreConfigArgs): Promise<AppConfig>
 
 export function setYouTubeConfig(args: SetYouTubeConfigArgs): Promise<AppConfig> {
   return ipcCall<AppConfig>("set_youtube_config", DEFAULT_CONFIG, {
+    enabled: args.enabled,
     apiKey: args.apiKey,
     api_key: args.apiKey,
     regionCode: args.regionCode,

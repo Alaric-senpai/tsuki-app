@@ -128,6 +128,8 @@ pub struct DownloadManager {
     paused_jobs: PausedJobs,
     removed: Removed,
     paused: Arc<AtomicBool>,
+    /// Opt-in gate for completion notifications while the window is unfocused.
+    background_notifications: Arc<AtomicBool>,
     app: AppHandle,
 }
 
@@ -139,8 +141,10 @@ impl DownloadManager {
         let paused_jobs: PausedJobs = Arc::new(Mutex::new(HashSet::new()));
         let removed: Removed = Arc::new(Mutex::new(HashSet::new()));
         let paused = Arc::new(AtomicBool::new(false));
+        let background_notifications = Arc::new(AtomicBool::new(false));
 
         let worker = Arc::new(Worker {
+            background_notifications: Arc::clone(&background_notifications),
             db,
             app: app.clone(),
             data_dir,
@@ -168,8 +172,15 @@ impl DownloadManager {
             paused_jobs,
             removed,
             paused,
+            background_notifications,
             app,
         }
+    }
+
+    /// Opt in (or out) of completion notifications for background downloads.
+    pub fn set_background_notifications(&self, enabled: bool) {
+        self.background_notifications
+            .store(enabled, Ordering::SeqCst);
     }
 
     /// Change how many jobs may run at once.
@@ -403,6 +414,7 @@ struct Worker {
     removed: Removed,
     /// Used to hand a paused job back to the queue.
     commands: mpsc::UnboundedSender<Command>,
+    background_notifications: Arc<AtomicBool>,
 }
 
 /// Owns the waiting line.
@@ -722,6 +734,9 @@ impl Worker {
     /// Desktop notification so a background download is not silent.
     fn notify_complete(&self, job: &Job) {
         use tauri_plugin_notification::NotificationExt;
+        if !self.background_notifications.load(Ordering::SeqCst) {
+            return;
+        }
         if let Err(error) = self
             .app
             .notification()

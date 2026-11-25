@@ -7,6 +7,7 @@
  * where the generated one is intentionally wider (e.g. `DownloadSnapshot.state`)
  * or where the Rust type has a custom `Serialize` impl (`AppError`).
  */
+export type { AppRelease } from "./AppRelease"
 export type { ArchiveRepairResult } from "./ArchiveRepairResult"
 export type { BulkAddResult } from "./BulkAddResult"
 export type { ConsoleLine } from "./ConsoleLine"

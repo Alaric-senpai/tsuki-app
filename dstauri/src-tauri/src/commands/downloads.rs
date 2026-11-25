@@ -265,3 +265,16 @@ pub fn download_state(
 ) -> Result<Option<DownloadSnapshot>, AppError> {
     Ok(state.downloads().snapshot(episode_id))
 }
+
+/// Opt in to (or out of) background-download notifications. Downloads keep
+/// running either way; this flag only controls completion notifications when
+/// the window is not focused.
+#[tauri::command]
+pub fn set_background_downloads(
+    state: State<'_, AppState>,
+    enabled: bool,
+) -> Result<crate::config::Config, AppError> {
+    let config = state.update_setting("background_downloads", if enabled { "1" } else { "0" })?;
+    state.downloads().set_background_notifications(enabled);
+    Ok(config)
+}

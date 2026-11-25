@@ -47,7 +47,11 @@ pub struct SourceImportResult {
 
 /// Sources offered by the Explore dropdown.
 #[tauri::command]
-pub fn explore_sources() -> Vec<SourceInfo> {
+pub fn explore_sources(state: tauri::State<'_, crate::state::AppState>) -> Vec<SourceInfo> {
+    let config = state.config().ok();
+    let youtube_enabled = config
+        .as_ref()
+        .is_some_and(|value| value.youtube.enabled && !value.youtube.api_key.trim().is_empty());
     vec![
         SourceInfo {
             key: "donghuastream".to_string(),
@@ -64,8 +68,12 @@ pub fn explore_sources() -> Vec<SourceInfo> {
         SourceInfo {
             key: "youtube".to_string(),
             label: "YouTube".to_string(),
-            available: true,
-            note: "Set an API key in Settings, then search.".to_string(),
+            available: youtube_enabled,
+            note: if youtube_enabled {
+                "Opted in. Search runs only when you submit a query.".to_string()
+            } else {
+                "Optional source — enable YouTube and add an API key in Settings.".to_string()
+            },
         },
     ]
 }

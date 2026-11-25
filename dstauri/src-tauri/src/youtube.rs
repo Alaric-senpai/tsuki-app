@@ -157,14 +157,13 @@ pub fn human_age(published: i64, now: i64) -> String {
 pub fn best_thumbnail(item: &Value) -> String {
     let thumbs = item.get("snippet").and_then(|v| v.get("thumbnails"));
     for key in ["maxres", "standard", "high", "medium", "default"] {
-        if let Some(url) = thumbs
+        let url = thumbs
             .and_then(|v| v.get(key))
             .and_then(|v| v.get("url"))
             .and_then(Value::as_str)
-        {
-            if !url.is_empty() {
-                return url.to_string();
-            }
+            .unwrap_or("");
+        if !url.is_empty() {
+            return url.to_string();
         }
     }
     String::new()
@@ -371,21 +370,18 @@ impl YouTubeClient {
         let _ = fs::create_dir_all(&cache_file);
         cache_file.push(format!("{endpoint}-{}.json", cache_key(endpoint, &params)));
 
-        if self.cache_seconds > 0 {
-            if let Ok(metadata) = fs::metadata(&cache_file) {
-                if metadata
-                    .modified()
-                    .ok()
-                    .and_then(|t| t.elapsed().ok())
-                    .is_some_and(|age| age.as_secs() < self.cache_seconds)
-                {
-                    if let Ok(text) = fs::read_to_string(&cache_file) {
-                        if let Ok(value) = serde_json::from_str::<Value>(&text) {
-                            return Ok(value);
-                        }
-                    }
-                }
-            }
+        let cache_fresh = self.cache_seconds > 0
+            && fs::metadata(&cache_file)
+                .ok()
+                .and_then(|metadata| metadata.modified().ok())
+                .and_then(|modified| modified.elapsed().ok())
+                .is_some_and(|age| age.as_secs() < self.cache_seconds);
+        let cached = cache_fresh
+            .then(|| fs::read_to_string(&cache_file).ok())
+            .flatten()
+            .and_then(|text| serde_json::from_str::<Value>(&text).ok());
+        if let Some(value) = cached {
+            return Ok(value);
         }
 
         let response = self

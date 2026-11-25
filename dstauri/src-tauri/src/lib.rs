@@ -1,3 +1,4 @@
+mod app_updater;
 mod commands;
 mod config;
 mod db;
@@ -205,6 +206,11 @@ pub fn run() {
                 data_dir.clone(),
                 concurrency,
             );
+            let background_downloads = current
+                .settings
+                .get("background_downloads")
+                .is_some_and(|value| value == "1");
+            downloads.set_background_notifications(background_downloads);
 
             app.manage(AppState::new(
                 store,
@@ -234,6 +240,9 @@ pub fn run() {
             commands::config::set_player_config,
             commands::config::set_explore_config,
             commands::config::set_youtube_config,
+            commands::downloads::set_background_downloads,
+            commands::app_updater::check_app_update,
+            commands::app_updater::install_app_update,
             commands::player::resolve_playable,
             commands::config::open_in_external_player,
             commands::library::list_series,
