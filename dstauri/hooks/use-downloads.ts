@@ -11,6 +11,7 @@ import {
   type SnapshotMap,
 } from "@/lib/ipc/download-events"
 import {
+  cancelAllDownloads,
   cancelEpisodeDownload,
   clearDownloadQueue,
   downloadQueue,
@@ -24,6 +25,7 @@ import {
   removeFromQueue,
   resumeEpisodeDownload,
   setDownloadsPaused,
+  unqueueDownloads,
   type DownloadSnapshot,
 } from "@/lib/ipc/downloads"
 
@@ -45,6 +47,10 @@ export interface DownloadQueue {
   /** Stop a job (if running) and drop its row entirely. */
   remove: (episodeId: number) => Promise<boolean>
   clear: () => Promise<void>
+  /** Drop every queued/paused/finished row, keeping live jobs. */
+  unqueueAll: () => Promise<number[]>
+  /** Cancel all active jobs and drop all non-running rows. */
+  cancelAll: () => Promise<number>
   clearError: () => void
 }
 
@@ -196,6 +202,37 @@ export function useDownloadQueue(): DownloadQueue {
     }
   }, [])
 
+  const unqueueAll = useCallback(async () => {
+    try {
+      const ids = await unqueueDownloads()
+      for (const id of ids) {
+        cleared.current.add(id)
+      }
+      setSnapshots((current) => applyClearedIds(current, ids))
+      setConsoleLines((current) => applyClearedIds(current, ids))
+      return ids
+    } catch (cause) {
+      setError(toAppIpcError(cause))
+      throw toAppIpcError(cause)
+    }
+  }, [])
+
+  const cancelAll = useCallback(async () => {
+    try {
+      const count = await cancelAllDownloads()
+      const ids = await unqueueDownloads()
+      for (const id of ids) {
+        cleared.current.add(id)
+      }
+      setSnapshots((current) => applyClearedIds(current, ids))
+      setConsoleLines((current) => applyClearedIds(current, ids))
+      return count
+    } catch (cause) {
+      setError(toAppIpcError(cause))
+      throw toAppIpcError(cause)
+    }
+  }, [])
+
   const pause = useCallback(async (episodeId: number) => {
     try {
       await pauseEpisodeDownload(episodeId)
@@ -259,6 +296,8 @@ export function useDownloadQueue(): DownloadQueue {
     setPaused: setQueuePaused,
     remove,
     clear,
+    unqueueAll,
+    cancelAll,
     clearError,
   }
 }

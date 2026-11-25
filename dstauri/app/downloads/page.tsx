@@ -13,6 +13,7 @@ import { LiveQueueSection } from "@/components/features/downloads/live-queue-sec
 import { SessionOverview } from "@/components/features/downloads/session-overview"
 import { Button } from "@/components/ui/button"
 import { useDownloadQueue } from "@/hooks/use-downloads"
+import { isBulkRemovable } from "@/lib/ipc/download-events"
 import {
   useArchiveSync,
   useLibraryStats,
@@ -44,6 +45,7 @@ export default function DownloadsPage() {
     [rows],
   )
   const finished = rows.length - active.length
+  const unqueueCount = rows.filter((row) => isBulkRemovable(row.state)).length
 
   // Session telemetry: aggregate what the active jobs report so the second
   // stats row says something useful even when nothing is running.
@@ -148,13 +150,20 @@ export default function DownloadsPage() {
     })
   }
 
-  const cancelActiveJobs = () => {
-    for (const row of active) {
-      void queue.cancel(row.episodeId)
-    }
-    toast("Cancelled active downloads", {
-      description: `${active.length} job${active.length === 1 ? "" : "s"} stopped.`,
-    })
+  const cancelAllJobs = () => {
+    void queue.cancelAll().then((count) =>
+      toast.success("Cancelled downloads", {
+        description: `${count} active job${count === 1 ? "" : "s"} stopped.`,
+      }),
+    )
+  }
+
+  const unqueueAllJobs = () => {
+    void queue.unqueueAll().then((ids) =>
+      toast.success("Cleared queue", {
+        description: `${ids.length} waiting row${ids.length === 1 ? "" : "s"} removed.`,
+      }),
+    )
   }
 
   const toggleQueue = () => {
@@ -233,8 +242,10 @@ export default function DownloadsPage() {
           activeCount={active.length}
           finished={finished}
           onTogglePause={toggleQueue}
-          onCancelActive={cancelActiveJobs}
+          onCancelAll={cancelAllJobs}
           onClearFinished={clearFinishedJobs}
+          onUnqueueAll={unqueueAllJobs}
+          unqueueCount={unqueueCount}
         />
 
         <DiskUsageCard />

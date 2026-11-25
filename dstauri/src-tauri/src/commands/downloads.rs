@@ -296,6 +296,31 @@ pub fn set_background_downloads(
     Ok(config)
 }
 
+/// Drop every non-running queue row and reset matching catalog statuses.
+#[tauri::command]
+pub async fn unqueue_downloads(state: State<'_, AppState>) -> Result<Vec<i64>, AppError> {
+    let removed = state.downloads().unqueue_all();
+    if !removed.is_empty() {
+        queries::reset_queued_episodes_to_not_started(state.db().pool(), &removed).await?;
+        state.notify_library_changed();
+    }
+    Ok(removed)
+}
+
+/// Cancel every active download and drop all non-running rows.
+#[tauri::command]
+pub async fn cancel_all_downloads(state: State<'_, AppState>) -> Result<usize, AppError> {
+    let running = state.downloads().cancel_all();
+    let removed = state.downloads().unqueue_all();
+    if !removed.is_empty() {
+        queries::reset_queued_episodes_to_not_started(state.db().pool(), &removed).await?;
+    }
+    if !running.is_empty() || !removed.is_empty() {
+        state.notify_library_changed();
+    }
+    Ok(running.len())
+}
+
 #[cfg(test)]
 mod tests {
     use super::{clamp_concurrency, is_active_snapshot_state};

@@ -1,45 +1,24 @@
 import { describe, expect, it } from "vitest"
 
-import {
-  applyClearedIds,
-  applyDownloadState,
-  applyRemovedId,
-} from "./download-events"
-import type { DownloadSnapshot } from "./downloads"
+import { isBulkRemovable, partitionBulkRemovable } from "./download-events"
 
-const row = (episodeId: number, state = "done"): DownloadSnapshot => ({
-  episodeId,
-  seriesId: 1,
-  title: `Episode ${episodeId}`,
-  state,
-  attempt: 0,
-  maxRetries: 3,
-  downloadedBytes: 100,
-  totalBytes: 100,
-  speedBps: 0,
-  etaSec: 0,
-  currentFormat: "",
-  error: null,
-  filePath: null,
-})
-
-describe("download queue event helpers", () => {
-  it("drops a row when the backend reports it removed", () => {
-    const current = { 7: row(7), 9: row(9, "queued") }
-    expect(applyRemovedId(current, 7)).toEqual({ 9: row(9, "queued") })
+describe("bulk queue helpers", () => {
+  it("keeps only running phases", () => {
+    for (const state of ["resolving", "downloading", "retrying"]) {
+      expect(isBulkRemovable(state)).toBe(false)
+    }
+    for (const state of ["queued", "paused", "done", "failed", "cancelled", "idle"]) {
+      expect(isBulkRemovable(state)).toBe(true)
+    }
   })
 
-  it("drops every cleared row and its console lines", () => {
-    const current = { 7: row(7), 8: row(8, "failed"), 9: row(9, "queued") }
-    expect(applyClearedIds(current, [7, 8])).toEqual({ 9: row(9, "queued") })
-  })
-
-  it("ignores late state events for cleared rows until they are restarted", () => {
-    const cleared = new Set([7])
-    expect(applyDownloadState({}, row(7), cleared)).toEqual({})
-    cleared.delete(7)
-    expect(applyDownloadState({}, row(7, "queued"), cleared)).toEqual({
-      7: row(7, "queued"),
-    })
+  it("partitions rows for unqueue and cancel-all", () => {
+    const rows = [
+      { episodeId: 1, state: "downloading" },
+      { episodeId: 2, state: "queued" },
+      { episodeId: 3, state: "done" },
+      { episodeId: 4, state: "retrying" },
+    ]
+    expect(partitionBulkRemovable(rows)).toEqual({ removable: [2, 3], running: [1, 4] })
   })
 })

@@ -47,3 +47,20 @@ export function applyDownloadState(
   }
   return { ...current, [snapshot.episodeId]: snapshot }
 }
+
+/** True for rows a bulk unqueue may drop (everything except live work). */
+export function isBulkRemovable(state: string): boolean {
+  return !["resolving", "downloading", "retrying"].includes(state)
+}
+
+/** Split rows into ids a bulk unqueue would drop and ids it must keep. */
+export function partitionBulkRemovable<T extends { episodeId: number; state: string }>(
+  rows: T[],
+): { removable: number[]; running: number[] } {
+  const removable: number[] = []
+  const running: number[] = []
+  for (const row of rows) {
+    ;(isBulkRemovable(row.state) ? removable : running).push(row.episodeId)
+  }
+  return { removable, running }
+}

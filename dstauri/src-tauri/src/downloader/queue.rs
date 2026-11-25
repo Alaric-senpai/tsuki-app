@@ -42,6 +42,22 @@ pub const TRAY_ID: &str = "downloads";
 /// Snapshot states that count as an in-flight download.
 const ACTIVE_STATES: [&str; 5] = ["queued", "paused", "resolving", "downloading", "retrying"];
 
+/// States that still represent live work. Bulk unqueue keeps these rows.
+const RUNNING_STATES: [&str; 3] = ["resolving", "downloading", "retrying"];
+
+pub fn is_running_state(state: &str) -> bool {
+    RUNNING_STATES.contains(&state)
+}
+
+#[cfg(test)]
+fn retain_running_states<'a>(states: &'a [&'a str]) -> Vec<&'a str> {
+    states
+        .iter()
+        .copied()
+        .filter(|state| is_running_state(state))
+        .collect()
+}
+
 /// Upper bound for a custom concurrency value. Large values are allowed, but
 /// an unbounded queue would exhaust the process, so the custom dialog is
 /// capped here rather than silently spawning an unlimited number of jobs.
@@ -405,6 +421,55 @@ impl DownloadManager {
 
         removed.sort_unstable();
         removed
+    }
+
+    /// Drop every row that is not actively running: queued, paused and all
+    /// terminal states. Running jobs keep their rows and finish on their own.
+    pub fn unqueue_all(&self) -> Vec<i64> {
+        let mut removed: Vec<i64> = Vec::new();
+        if let Ok(map) = self.snapshots.lock() {
+            removed = map
+                .iter()
+                .filter(|(_, snapshot)| !is_running_state(&snapshot.state))
+                .map(|(episode_id, _)| *episode_id)
+                .collect();
+        }
+        for episode_id in &removed {
+            forget_snapshot(
+                &self.app,
+                &self.snapshots,
+                &self.cancels,
+                &self.paused_jobs,
+                &self.removed,
+                *episode_id,
+            );
+            let _ = self.commands.send(Command::Remove(*episode_id));
+        }
+        removed.sort_unstable();
+        removed
+    }
+
+    /// Cancel every running job and drop every non-running row. Running jobs
+    /// stay in the queue until their worker observes the cancel flag and emits
+    /// a `cancelled` snapshot (see `Worker::stop_job`).
+    pub fn cancel_all(&self) -> Vec<i64> {
+        let mut running: Vec<i64> = Vec::new();
+        if let Ok(map) = self.snapshots.lock() {
+            running = map
+                .iter()
+                .filter(|(_, snapshot)| is_running_state(&snapshot.state))
+                .map(|(episode_id, _)| *episode_id)
+                .collect();
+        }
+        for episode_id in &running {
+            self.cancel(*episode_id);
+            if let Ok(mut set) = self.paused_jobs.lock() {
+                set.remove(episode_id);
+            }
+            let _ = self.commands.send(Command::Remove(*episode_id));
+        }
+        running.sort_unstable();
+        running
     }
 }
 
@@ -1001,6 +1066,24 @@ mod tests {
         assert!(!is_terminal_state("resolving"));
         assert!(!is_terminal_state("downloading"));
         assert!(!is_terminal_state("retrying"));
+    }
+
+    #[test]
+    fn only_running_states_survive_a_bulk_unqueue() {
+        let states = [
+            "queued",
+            "paused",
+            "resolving",
+            "downloading",
+            "retrying",
+            "done",
+            "failed",
+            "cancelled",
+        ];
+        assert_eq!(
+            retain_running_states(&states),
+            vec!["resolving", "downloading", "retrying"]
+        );
     }
 
     #[test]

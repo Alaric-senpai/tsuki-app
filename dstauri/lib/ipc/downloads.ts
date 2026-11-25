@@ -202,6 +202,16 @@ export function setBackgroundDownloads(enabled: boolean): Promise<AppConfig> {
   return ipcCall<AppConfig>("set_background_downloads", DEFAULT_CONFIG, { enabled })
 }
 
+/** Drop every non-running queue row and reset queued catalog statuses. */
+export function unqueueDownloads(): Promise<number[]> {
+  return ipcCall<number[]>("unqueue_downloads", [], {})
+}
+
+/** Cancel every active download and drop all non-running rows. */
+export function cancelAllDownloads(): Promise<number> {
+  return ipcCall<number>("cancel_all_downloads", 0, {})
+}
+
 /** Catalog rows changed somewhere (download finished, import, cancel…). */
 export async function listenLibraryChanged(
   handler: () => void,

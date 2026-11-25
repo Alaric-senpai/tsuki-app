@@ -12,15 +12,19 @@ export function LiveQueueSection({
   activeCount,
   finished,
   onTogglePause,
-  onCancelActive,
+  onCancelAll,
   onClearFinished,
+  onUnqueueAll,
+  unqueueCount,
 }: {
   queue: DownloadQueue
   activeCount: number
   finished: number
   onTogglePause: () => void
-  onCancelActive: () => void
+  onCancelAll: () => void
   onClearFinished: () => void
+  onUnqueueAll: () => void
+  unqueueCount: number
 }) {
   const rows = queue.rows
   return (
@@ -36,11 +40,22 @@ export function LiveQueueSection({
               )}
               {queue.paused ? "Resume queue" : "Pause queue"}
             </Button>
-            {activeCount > 0 ? (
-              <Button variant="outline" size="sm" onClick={onCancelActive}>
-                Cancel active
-              </Button>
-            ) : null}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onCancelAll}
+              disabled={activeCount === 0}
+            >
+              Cancel downloads
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onUnqueueAll}
+              disabled={unqueueCount === 0}
+            >
+              Clear queue
+            </Button>
             {finished > 0 ? (
               <Button variant="ghost" size="sm" onClick={onClearFinished}>
                 Clear finished

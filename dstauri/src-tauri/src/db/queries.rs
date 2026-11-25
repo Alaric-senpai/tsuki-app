@@ -1495,3 +1495,73 @@ pub async fn all_watch_progress(
     .await
     .map_err(db_error)
 }
+
+/// Reset queued catalog rows to `not_started` after the user unqueues them,
+/// so a restart does not resurrect a cancelled job. Other statuses are left
+/// alone (a downloaded file must stay downloaded).
+pub async fn reset_queued_episodes_to_not_started(
+    pool: &SqlitePool,
+    ids: &[i64],
+) -> Result<i64, AppError> {
+    let mut changed = 0i64;
+    for id in ids {
+        let result = sqlx::query(
+            "UPDATE episodes SET status = 'not_started', downloaded_at = NULL \
+             WHERE id = ?1 AND status = 'queued'",
+        )
+        .bind(id)
+        .execute(pool)
+        .await
+        .map_err(db_error)?;
+        changed += result.rows_affected() as i64;
+    }
+    Ok(changed)
+}
+
+#[cfg(test)]
+mod tests {
+    use sqlx::SqlitePool;
+
+    use super::reset_queued_episodes_to_not_started;
+
+    #[tokio::test]
+    async fn only_queued_rows_are_reset() {
+        let pool = SqlitePool::connect("sqlite::memory:").await.expect("pool");
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .expect("migrations");
+        sqlx::query("INSERT INTO series (key,name,save_dir) VALUES ('s','S','/tmp')")
+            .execute(&pool)
+            .await
+            .expect("series");
+        for (id, status) in [
+            (1, "queued"),
+            (2, "downloaded"),
+            (3, "failed"),
+            (4, "not_started"),
+        ] {
+            sqlx::query(
+                "INSERT INTO episodes (series_id,video_id,url,title,status) VALUES (1,?1,'u',?2,?3)",
+            )
+            .bind(format!("v{id}"))
+            .bind(format!("E{id}"))
+            .bind(status)
+            .execute(&pool)
+            .await
+            .expect("episode");
+        }
+        let changed = reset_queued_episodes_to_not_started(&pool, &[1, 2, 3, 4])
+            .await
+            .expect("reset");
+        assert_eq!(changed, 1);
+        let statuses: Vec<String> = sqlx::query_scalar("SELECT status FROM episodes ORDER BY id")
+            .fetch_all(&pool)
+            .await
+            .expect("statuses");
+        assert_eq!(
+            statuses,
+            vec!["not_started", "downloaded", "failed", "not_started"]
+        );
+    }
+}
