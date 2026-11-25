@@ -1,18 +1,16 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
-import { DownloadIcon, PauseIcon, PlayIcon } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { DownloadIcon } from "lucide-react"
 import { toast } from "sonner"
 
-import { ErrorPanel } from "@/components/common/data-state"
 import { PageHeader } from "@/components/common/page-header"
-import { StatGrid } from "@/components/common/stat-grid"
 import { StatusChip } from "@/components/common/status-chip"
 import { ConsoleDrawer } from "@/components/features/downloads/console-drawer"
 import { DiskUsageCard } from "@/components/features/downloads/disk-usage-card"
-import { DownloadQueueItem } from "@/components/features/downloads/download-queue-item"
-import { EpisodeStatusTable } from "@/components/features/downloads/episode-status-table"
-import { NotStartedSection } from "@/components/features/downloads/not-started-section"
+import { EpisodeSections } from "@/components/features/downloads/episode-sections"
+import { LiveQueueSection } from "@/components/features/downloads/live-queue-section"
+import { SessionOverview } from "@/components/features/downloads/session-overview"
 import { Button } from "@/components/ui/button"
 import { useDownloadQueue } from "@/hooks/use-downloads"
 import {
@@ -20,29 +18,8 @@ import {
   useLibraryStats,
   useRecentEpisodes,
 } from "@/hooks/use-library"
-import { formatBytes, formatEta, formatSpeed } from "@/lib/utils"
 
 const ACTIVE_PHASES = new Set(["queued", "paused", "resolving", "downloading", "retrying"])
-
-function SectionTitle({
-  children,
-  actions,
-}: {
-  children: string
-  actions?: ReactNode
-}) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex items-center gap-2">
-        <DownloadIcon className="size-4 text-primary" />
-        <h2 className="font-heading text-lg font-semibold tracking-tight">
-          {children}
-        </h2>
-      </div>
-      {actions}
-    </div>
-  )
-}
 
 export default function DownloadsPage() {
   const stats = useLibraryStats()
@@ -54,6 +31,7 @@ export default function DownloadsPage() {
   const queue = useDownloadQueue()
   const [bulkBusy, setBulkBusy] = useState(false)
 
+  // The refresh callbacks are stable; the resource objects around them are not.
   const { refresh: refreshNotStarted } = notStarted
   const { refresh: refreshQueued } = queued
   const { refresh: refreshFailed } = failed
@@ -243,205 +221,35 @@ export default function DownloadsPage() {
       />
 
       <div className="space-y-6 px-6 py-6">
-        <StatGrid
-          items={[
-            { label: "Queued", value: stats.data.queuedCount },
-            {
-              label: "Failed",
-              value: stats.data.failedCount,
-              hint: "Retry budget already spent",
-            },
-            { label: "Downloaded", value: stats.data.downloadedCount },
-            {
-              label: "Not started",
-              value: stats.data.pendingCount,
-              hint: "In the library, no download run yet",
-            },
-          ]}
+        <SessionOverview
+          stats={stats}
+          archive={archive}
+          activeCount={active.length}
+          session={session}
         />
 
-        <section className="space-y-3">
-          <SectionTitle>This session</SectionTitle>
-          <StatGrid
-            items={[
-              {
-                label: "Active downloads",
-                value: active.length,
-                hint: "Running in the background",
-              },
-              { label: "Total speed", value: formatSpeed(session.speedBps) },
-              { label: "Longest ETA", value: formatEta(session.etaSec) },
-              {
-                label: "Downloaded this session",
-                value: formatBytes(session.downloadedBytes),
-              },
-            ]}
-          />
-        </section>
-
-        {archive.error ? (
-          <p className="text-sm text-destructive" role="alert">
-            Archive sync failed: {archive.error.message}
-          </p>
-        ) : null}
-
-        <section className="space-y-3">
-          <SectionTitle
-            actions={
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={toggleQueue}
-                >
-                  {queue.paused ? (
-                    <PlayIcon className="size-3.5" />
-                  ) : (
-                    <PauseIcon className="size-3.5" />
-                  )}
-                  {queue.paused ? "Resume queue" : "Pause queue"}
-                </Button>
-                {active.length > 0 ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={cancelActiveJobs}
-                  >
-                    Cancel active
-                  </Button>
-                ) : null}
-                {finished > 0 ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearFinishedJobs}
-                  >
-                    Clear finished
-                  </Button>
-                ) : null}
-              </div>
-            }
-          >
-            Live queue
-          </SectionTitle>
-
-          {queue.error ? (
-            <ErrorPanel
-              title="The download queue could not be read"
-              error={queue.error}
-            />
-          ) : queue.loading ? (
-            <div className="space-y-2" aria-busy="true" aria-label="Loading queue">
-              {Array.from({ length: 2 }, (_, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-3 rounded-lg border border-border/60 bg-surface-low px-4 py-3"
-                >
-                  <div className="size-8 shrink-0 animate-pulse rounded-lg bg-muted" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
-                    <div className="h-2 w-1/3 animate-pulse rounded bg-muted" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : rows.length === 0 ? (
-            <div className="flex items-center justify-between rounded-lg border border-border/60 bg-surface-low px-4 py-3">
-              <span className="text-sm text-muted-foreground">
-                Nothing has been queued in this session. Start a download from a
-                series page or from the list below.
-              </span>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {rows.map((snapshot) => (
-                <DownloadQueueItem
-                  key={snapshot.episodeId}
-                  snapshot={snapshot}
-                  consoleLines={queue.consoleLines[snapshot.episodeId]}
-                  onCancel={(episodeId) => {
-                    void queue.cancel(episodeId)
-                  }}
-                  onPause={(episodeId) => {
-                    void queue.pause(episodeId)
-                  }}
-                  onResume={(episodeId) => {
-                    void queue.resume(episodeId)
-                  }}
-                  onMove={(episodeId, direction) => {
-                    void queue.move(episodeId, direction)
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </section>
+        <LiveQueueSection
+          queue={queue}
+          activeCount={active.length}
+          finished={finished}
+          onTogglePause={toggleQueue}
+          onCancelActive={cancelActiveJobs}
+          onClearFinished={clearFinishedJobs}
+        />
 
         <DiskUsageCard />
 
-        <section className="space-y-3">
-          <SectionTitle
-            actions={
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={bulkBusy || notStarted.data.length === 0}
-                onClick={queueAllNotStarted}
-              >
-                <DownloadIcon />
-                Download all ({notStarted.data.length})
-              </Button>
-            }
-          >
-            Not started
-          </SectionTitle>
-          <NotStartedSection
-            episodes={notStarted.data}
-            loading={notStarted.loading}
-            busy={bulkBusy}
-            onDownload={queueMany}
-          />
-        </section>
-
-        <section className="space-y-3">
-          <SectionTitle>Waiting in queue</SectionTitle>
-          <EpisodeStatusTable
-            episodes={queued.data}
-            loading={queued.loading}
-            tone="buffering"
-            label="QUEUED"
-            emptyTitle="Nothing waiting"
-            emptyDescription="No episodes are marked queued in the catalog."
-            onRemove={removeQueued}
-          />
-        </section>
-
-        <section className="space-y-3">
-          <SectionTitle>Needs attention</SectionTitle>
-          <EpisodeStatusTable
-            episodes={failed.data}
-            loading={failed.loading}
-            tone="error"
-            label="FAILED"
-            emptyTitle="No failed downloads"
-            emptyDescription="The retry budget has not been exhausted anywhere."
-            actionLabel="Retry"
-            onRetry={retry}
-          />
-        </section>
-
-        <section className="space-y-3">
-          <SectionTitle>Completed</SectionTitle>
-          <EpisodeStatusTable
-            episodes={downloaded.data}
-            loading={downloaded.loading}
-            tone="active"
-            label="DOWNLOADED"
-            emptyTitle="Nothing downloaded yet"
-            emptyDescription="Saved episodes will appear here."
-            watch
-          />
-        </section>
+        <EpisodeSections
+          notStarted={notStarted}
+          queued={queued}
+          failed={failed}
+          downloaded={downloaded}
+          bulkBusy={bulkBusy}
+          onQueueMany={queueMany}
+          onQueueAllNotStarted={queueAllNotStarted}
+          onRemoveQueued={removeQueued}
+          onRetry={retry}
+        />
       </div>
     </>
   )
