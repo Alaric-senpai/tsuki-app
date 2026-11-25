@@ -7,25 +7,23 @@ yt-dlp URL-extraction in a background thread so the UI never freezes.
 from __future__ import annotations
 
 import subprocess
-import threading
-import time
 from typing import Optional
 
 from PyQt6.QtCore import (
-    QLibraryInfo, QSize, Qt, QThread, QUrl, pyqtSignal, pyqtSlot,
+    QSize, Qt, QThread, QTimer, QUrl, pyqtSignal, pyqtSlot,
 )
-from PyQt6.QtGui import QDesktopServices, QKeySequence
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6.QtWidgets import (
-    QApplication, QHBoxLayout, QLabel, QPushButton, QSizePolicy,
-    QSlider, QVBoxLayout, QWidget,
+    QHBoxLayout, QLabel, QPushButton, QSizePolicy, QSlider, QVBoxLayout,
+    QWidget,
 )
 
-import sources
 from ..icons import icon
 from ..theme import (
-    T_CANVAS, T_LINE, T_MUTED, T_PRIMARY, T_ROSE2, T_SEC, T_TEXT,
+    T_CANVAS, T_CANVAS_SOFT, T_CARD_HI, T_CARD_SOFT, T_HOVER, T_LINE,
+    T_MUTED, T_PRIMARY, T_ROSE2, T_SEC, T_TEXT,
 )
 
 
@@ -49,9 +47,9 @@ class _StreamExtractor(QThread):
                     "yt-dlp",
                     "--no-warnings",
                     "--no-playlist",
-                    "--dump-json",
-                    "--flat-playlist",
-                    "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+                    # Single progressive file (video+audio muxed) so
+                    # QMediaPlayer gets ONE URL it can play directly.
+                    "-f", "best[acodec!=none][vcodec!=none]/best[ext=mp4]/best",
                     "--get-url",
                     str(self._video_url),
                 ],
@@ -62,7 +60,8 @@ class _StreamExtractor(QThread):
             if self._stopped:
                 return
             if proc.returncode == 0:
-                url = proc.stdout.strip()
+                # --get-url may print one URL per line; take the first.
+                url = (proc.stdout.strip().splitlines() or [""])[0].strip()
                 if url:
                     self.stream_ready.emit(url)
                     return
@@ -168,6 +167,10 @@ class VideoPlayerPanel(QWidget):
         self._audio: Optional[QAudioOutput] = None
         self._video_widget: Optional[QVideoWidget] = None
         self._opened = False            # is the panel currently showing content?
+        self._spinner_on = False
+        self._spinner_timer: Optional[QTimer] = None
+        self._expanded_h = 532          # 480 video + 52 controls
+        self._spin_n = 0                # spinner animation phase
 
         self._build_ui()
 
@@ -187,15 +190,18 @@ class VideoPlayerPanel(QWidget):
         if self._video_url.startswith("/") or self._video_url.startswith("file://"):
             path = self._video_url.removeprefix("file://")
             self._stream_url = QUrl.fromLocalFile(path).toString()
-            self._show_streaming()
+            self._slide_in()
+            self._set_loading(False)
+            self._init_player(QUrl.fromLocalFile(path))
             return
 
         self._title_lbl.setText(self._title or "Loading stream…")
         self._status_lbl.setText("Extracting stream URL with yt-dlp…")
         self._controls.hide()
         self._error_lbl.hide()
-        self._slide_in()
+        self._slide_in(show_controls=False)
         self._opened = True
+        self._set_loading(True)
         self._start_extractor(self._video_url)
 
     def play_stream(self, stream_url: str, title: str = "") -> None:
@@ -208,6 +214,7 @@ class VideoPlayerPanel(QWidget):
         self._controls.hide()
         self._error_lbl.hide()
         self._slide_in()
+        self._set_loading(False)
         self._opened = True
         self._init_player(QUrl(self._stream_url))
 
@@ -241,6 +248,15 @@ class VideoPlayerPanel(QWidget):
             f"color: {T_MUTED}; font-size: 48px; background: {T_CANVAS};")
         self._placeholder.setFixedHeight(480)
         vlay.addWidget(self._placeholder)
+        self._loading = QLabel("🕐  Loading stream…")
+        self._loading.setObjectName("loading")
+        self._loading.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._loading.setStyleSheet(
+            f"color: {T_PRIMARY}; font-size: 22px; font-weight: 700;"
+            f"background: {T_CANVAS};")
+        self._loading.setFixedHeight(480)
+        self._loading.hide()
+        vlay.addWidget(self._loading)
 
         # QtMultimedia video widget (added on first stream only)
         self._vid_widget: Optional[QVideoWidget] = None
@@ -331,25 +347,37 @@ class VideoPlayerPanel(QWidget):
 
     # ---- streaming helpers ----------------------------------------------------
 
-    def _slide_in(self) -> None:
-        if self.height() == 532:
-            return
-        self._controls.show()
-        # animate height 0 → 532
-        def _grow():
-            for h in range(0, 533, 33):
-                self.setFixedHeight(h)
-                QApplication.processEvents()
-        t = threading.Thread(target=_grow, daemon=True)
-        t.start()
+    def _slide_in(self, show_controls: bool = True) -> None:
+        self.setFixedHeight(self._expanded_h)
+        self.show()
+        if show_controls:
+            self._controls.show()
 
     def _slide_out(self) -> None:
-        def _shrink():
-            for h in range(self.height(), -1, -33):
-                self.setFixedHeight(max(0, h))
-                QApplication.processEvents()
-        t = threading.Thread(target=_shrink, daemon=True)
-        t.start()
+        self._stop_spinner()
+        self._set_loading(False)
+        self.setFixedHeight(0)
+        self.hide()
+
+    def _set_loading(self, on: bool) -> None:
+        self._loading.setVisible(on)
+        if on:
+            from PyQt6.QtCore import QTimer as _QTimer
+            if self._spinner_timer is None:
+                self._spinner_timer = _QTimer(self)
+                self._spinner_timer.timeout.connect(self._advance_spinner)
+            self._spinner_timer.start(320)
+        else:
+            self._stop_spinner()
+
+    def _advance_spinner(self) -> None:
+        self._loading.setText("🕐  Loading stream" + "." * (self._spin_n % 4))
+        self._spin_n = (self._spin_n + 1) % 4
+
+    def _stop_spinner(self) -> None:
+        if self._spinner_timer is not None:
+            self._spinner_timer.stop()
+            self._spinner_timer = None
 
     def _start_extractor(self, url: str) -> None:
         self._cancel_extractor()
@@ -375,21 +403,22 @@ class VideoPlayerPanel(QWidget):
 
     @pyqtSlot(str)
     def _on_stream_ready(self, url: str) -> None:
+        self._set_loading(False)
         self._stream_url = url
-        self._status_lbl.setText("")
+        self._status_lbl.setText("Buffering…" if not self._player else "")
         self._controls.show()
         self._init_player(QUrl(url))
 
     @pyqtSlot(str)
     def _on_extractor_error(self, msg: str) -> None:
-        # Fallback: try to open the source page in the browser
+        # Stay in-app: surface the error and let the user decide whether to
+        # open the page in a browser via the manual button.
+        self._set_loading(False)
         self._error_lbl.setText(f"Stream unavailable: {msg}")
         self._error_lbl.show()
         self._browser_btn.setText("Open in browser")
         self._browser_btn.show()
         self._controls.show()
-        if self._video_url:
-            self._open_browser()
 
     def _open_browser(self) -> None:
         if self._video_url:
@@ -406,22 +435,15 @@ class VideoPlayerPanel(QWidget):
             from PyQt6.QtMultimediaWidgets import QVideoWidget
         except ImportError:
             self._error_lbl.setText(
-                "Playback unavailable: PyQt6 Multimedia not installed. "
-                "Opening in browser instead.")
+                "Playback unavailable: PyQt6 Multimedia is not installed.")
             self._error_lbl.show()
-            if self._video_url:
-                QTimer.singleShot(500,
-                                  lambda: QDesktopServices.openUrl(
-                                      QUrl(self._video_url)))
-                self.close_panel()
+            self._controls.show()
             return
 
         self._player = QMediaPlayer()
         self._audio = QAudioOutput()
         self._audio.setVolume(1.0)
         self._player.setAudioOutput(self._audio)
-
-        # Replace placeholder with real video widget
         if self._vid_widget is None:
             self._vid_widget = QVideoWidget()
             self._vid_widget.setMinimumHeight(480)
@@ -438,6 +460,7 @@ class VideoPlayerPanel(QWidget):
         self._player.positionChanged.connect(self._on_position_changed)
         self._player.durationChanged.connect(self._on_duration_changed)
         self._player.errorOccurred.connect(self._on_player_error)
+        self._player.mediaStatusChanged.connect(self._on_media_status)
         self._player.setSource(url)
         self._player.play()
 
@@ -460,6 +483,10 @@ class VideoPlayerPanel(QWidget):
                 p.errorOccurred.disconnect(self._on_player_error)
             except Exception:
                 pass
+            try:
+                p.mediaStatusChanged.disconnect(self._on_media_status)
+            except Exception:
+                pass
             p.stop()
             p.deleteLater()
         self._player = None
@@ -472,8 +499,22 @@ class VideoPlayerPanel(QWidget):
         state = self._player.playbackState()
         if state == QMediaPlayer.PlaybackState.PlayingState:
             self._play_btn.setText("⏸")
+            self._status_lbl.setText("")
         else:
             self._play_btn.setText("▶")
+
+    @pyqtSlot(int)
+    def _on_media_status(self, status: int) -> None:
+        from PyQt6.QtMultimedia import QMediaPlayer as _QMP
+        if status == _QMP.MediaStatus.InvalidMedia:
+            self._set_loading(False)
+            self._error_lbl.setText(
+                "Playback error. Use “Open in browser” if this format cannot play in-app.")
+            self._error_lbl.show()
+            self._browser_btn.show()
+        elif status == _QMP.MediaStatus.BufferedMedia:
+            self._set_loading(False)
+            self._status_lbl.setText("")
 
     @pyqtSlot(int)
     def _on_position_changed(self, pos: int) -> None:
@@ -485,17 +526,16 @@ class VideoPlayerPanel(QWidget):
     def _on_duration_changed(self, dur: int) -> None:
         self._position_slider.setRange(0, max(0, dur))
 
-    @pyqtSlot(int)
-    def _on_player_error(self, err: int) -> None:
-        # Error code 4 = No proper format — try browser fallback
+    @pyqtSlot(int, str)
+    def _on_player_error(self, err: int, msg: str) -> None:
+        self._set_loading(False)
         self._error_lbl.setText(
-            "Playback error. Opening in your default browser instead.")
+            "Playback error. Use “Open in browser” if this format cannot play in-app.")
         self._error_lbl.show()
-        if self._video_url:
-            QTimer.singleShot(1000,
-                              lambda: QDesktopServices.openUrl(
-                                  QUrl(self._video_url)))
-        self._player.stop()
+        self._browser_btn.show()
+        p = self._player
+        if p is not None:
+            p.stop()
 
     # ---- controls ------------------------------------------------------------
 

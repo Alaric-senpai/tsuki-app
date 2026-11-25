@@ -157,6 +157,8 @@ class SettingsView(QWidget):
             "Network & Downloader",
             "Retry budget, bandwidth ceiling and subtitle language track.")
         self._mk_field(network, "Max retries per video", "max_retries", ("spin", 1, 20))
+        self._mk_field(network, "Concurrent downloads", "concurrent_downloads",
+                       ("spin", 1, 10))
         self._mk_field(network, "Subtitle languages", "sub_langs", ("text", "en, zh-Hans"))
         self.rate_spin = QDoubleSpinBox()
         self.rate_spin.setRange(0.0, 500.0)

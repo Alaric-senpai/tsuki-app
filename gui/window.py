@@ -596,8 +596,8 @@ class MainWindow(QMainWindow):
         self.navigateTo("downloads")
         self.statusToast.show_message(f"Queued {len(urls)} video(s) from {series.get('name', '')}.", True)
 
-    def _on_dl_event(self, ev: str, data: Dict[str, Any]) -> None:
-        self.downloads_view.on_event(ev, data)
+    def _on_dl_event(self, task: object, ev: str, data: Dict[str, Any]) -> None:
+        self.downloads_view.on_event(task, ev, data)
         if ev == "progress" and data.get("status") == "downloading":
             self.header.set_speed(float(data.get("speed") or 0))
             self.status_state.setText(
@@ -626,8 +626,10 @@ class MainWindow(QMainWindow):
     def _on_queue_state(self) -> None:
         self.downloads_view.on_state_changed()
         m = self.manager
-        if m.active_task:
-            self.header.set_active_text("1 Active", True)
+        running = len(m.active_workers)
+        if running:
+            self.header.set_active_text(
+                f"{running} Active" if running > 1 else "1 Active", True)
         elif m.paused:
             self.header.set_active_text("Queue Paused", False)
         elif m.queue:
@@ -750,6 +752,12 @@ class MainWindow(QMainWindow):
         self.settings_view.refresh_connection_info()
         self.sidebar.refresh_db_host()
         self.explore_view.reload_credentials()
+        if key in ("concurrent_downloads", "*"):
+            try:
+                n = max(1, int(self.settings.get("concurrent_downloads", "3") or 3))
+            except (TypeError, ValueError):
+                n = 3
+            self.manager.set_max_workers(n)
         if key in ("default_quality", "*"):
             self.header.set_quality_silent(self.settings.get("default_quality", "720p"))
         if key in ("global_save_dir", "*"):

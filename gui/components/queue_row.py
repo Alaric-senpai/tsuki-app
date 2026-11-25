@@ -15,6 +15,7 @@ class QueueRow(QFrame):
     move_up = pyqtSignal(object)
     move_down = pyqtSignal(object)
     remove = pyqtSignal(object)
+    inspect = pyqtSignal(object)   # open the per-session detail window
     paused = pyqtSignal()
     resumed = pyqtSignal()
 
@@ -61,17 +62,24 @@ class QueueRow(QFrame):
         if active:
             lay.addWidget(chip_tag("● RUNNING", "sky"))
 
+        insp = icon_btn("", "Open session details — progress, stats and logs")
+        insp.setIcon(icon("external", T_SEC, 14))
         up = icon_btn("", "Move up (higher priority)")
         down = icon_btn("", "Move down")
         rm = icon_btn("", "Remove from queue", danger=True)
         up.setIcon(icon("arrow-up", T_SEC, 14))
         down.setIcon(icon("arrow-down", T_SEC, 14))
         rm.setIcon(icon("trash", T_ROSE2, 14))
-        for b in (up, down, rm):
+        for b in (insp, up, down, rm):
             b.setFixedSize(28, 28)
             b.setIconSize(QSize(14, 14))
+        insp.clicked.connect(lambda: self.inspect.emit(task))
         up.clicked.connect(lambda: self.move_up.emit(task))
         down.clicked.connect(lambda: self.move_down.emit(task))
         rm.clicked.connect(lambda: self.remove.emit(task))
-        for b in (up, down, rm):
+        for b in (insp, up, down, rm):
             lay.addWidget(b)
+
+    def mouseDoubleClickEvent(self, event) -> None:
+        self.inspect.emit(self.task)
+        super().mouseDoubleClickEvent(event)

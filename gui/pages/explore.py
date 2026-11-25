@@ -22,9 +22,11 @@ from ..components.video_player import VideoPlayerPanel
 from ..icons import icon
 from ..infrastructure.thumbnails import ThumbnailStore
 from ..theme import (
-    F_MONO, T_AMBER2, T_AMBER_LINE, T_AMBER_SOFT, T_EMERALD2,
-    T_EMERALD_LINE, T_EMERALD_SOFT, T_MUTED, T_PRIMARY,
-    T_ROSE_LINE, T_ROSE_SOFT, T_ROSE2, T_SEC, T_TEXT,
+    F_MONO, T_AMBER2, T_AMBER_LINE, T_AMBER_SOFT, T_CANVAS,
+    T_CANVAS_SOFT, T_CARD_HI, T_CARD_SOFT, T_EMERALD2,
+    T_EMERALD_LINE, T_EMERALD_SOFT, T_FAINT, T_HOVER, T_LINE_STRONG,
+    T_MUTED, T_PRIMARY, T_RAIL_DEEP, T_ROSE_LINE, T_ROSE_SOFT,
+    T_ROSE2, T_SEC, T_TEXT,
 )
 
 SEARCH_STYLE = f"""
@@ -309,14 +311,14 @@ class ExploreView(QWidget):
 
         # ---- video grid
         self.grid = VideoGrid()
-        content.addWidget(self.grid)
 
-        # ---- in-app video player (overlays the grid when opened)
+        # ---- in-app video player (sits right above the grid, expands when opened)
         self.player = VideoPlayerPanel()
         self.player.setFixedHeight(0)
         self.player.closed.connect(self._on_player_closed)
         self.player.open_in_browser.connect(self._open_in_browser)
         content.addWidget(self.player)
+        content.addWidget(self.grid)
 
         # ---- status line
         self.status_line = QLabel("")
@@ -485,10 +487,11 @@ class ExploreView(QWidget):
             return
 
         self.player.play_url(page_url, title)
+        self.page_scroll.ensureWidgetVisible(self.player, 0, 0)
 
     def _on_player_closed(self) -> None:
         """Called when the player panel is closed by the user."""
-        pass  # the panel slides out automatically
+        self.player.setFixedHeight(0)
 
     def _open_in_browser(self, url: str) -> None:
         if url:

@@ -10,8 +10,8 @@ from PyQt6.QtWidgets import (
 import db
 from ..icons import app_icon, icon
 from ..theme import (
-    F_MONO, T_CANVAS_SOFT, T_EMERALD2, T_LINE, T_MUTED, T_ON_PRIMARY,
-    T_PRIMARY, T_ROSE2, T_SEC,
+    F_DISPLAY, F_MONO, T_CANVAS_SOFT, T_EMERALD2, T_LINE, T_MUTED,
+    T_ON_PRIMARY, T_PRIMARY, T_ROSE2, T_SEC,
 )
 from .primitives import hline
 

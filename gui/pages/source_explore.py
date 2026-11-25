@@ -21,8 +21,8 @@ from ..components.source_card import SourceSeriesCard
 from ..infrastructure.thumbnails import ThumbnailStore
 from ..theme import (
     T_AMBER2, T_AMBER_LINE, T_AMBER_SOFT, T_CANVAS, T_CANVAS_SOFT,
-    T_EMERALD2, T_EMERALD_LINE, T_EMERALD_SOFT, T_HOVER, T_LINE,
-    T_LINE_STRONG, T_MUTED, T_PRIMARY,
+    T_CARD, T_CARD_HI, T_EMERALD2, T_EMERALD_LINE, T_EMERALD_SOFT,
+    T_FAINT, T_HOVER, T_LINE, T_LINE_STRONG, T_MUTED, T_PRIMARY,
     T_ROSE_LINE, T_ROSE_SOFT, T_ROSE2, T_TEXT,
 )
 

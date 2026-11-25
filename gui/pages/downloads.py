@@ -13,6 +13,7 @@ from ..components.empty_state import EmptyState
 from ..components.primitives import (
     btn, chip_tag, icon_btn, label_caps, mk_label, muted_label, styled_bar,
 )
+from ..dialogs.download_detail import DownloadDetailDialog
 from ..components.queue_row import QueueRow
 from ..components.stack_list import StackList
 from ..icons import icon
@@ -99,6 +100,8 @@ class DownloadsView(QWidget):
         self._console_expanded = False
         self._progress_active = False
         self._saved_splitter_sizes = [190, 420]
+        # key = id(task) → open per-session detail window
+        self._detail_dialogs: Dict[int, DownloadDetailDialog] = {}
 
         root = QVBoxLayout(self)
         root.setContentsMargins(28, 14, 28, 18)
@@ -112,14 +115,14 @@ class DownloadsView(QWidget):
         tl.addWidget(muted_label("transfer console"))
         tl.addWidget(mk_label("Download Center", "display"))
         tl.addWidget(mk_label(
-            "One sequential pipeline — watch progress, reorder the queue and read the raw log.",
+            "Concurrent pipelines — watch progress, reorder the queue and read the raw log.",
             "body", "muted"))
         head.addLayout(tl)
         head.addStretch(1)
         chips = QHBoxLayout()
         chips.setSpacing(6)
         self.chip_speed = chip_tag("Bandwidth: —", "sky")
-        self.chip_stream = chip_tag("1 stream · sequential", "default")
+        self.chip_stream = chip_tag("0 streams · concurrent", "default")
         self.chip_queue = chip_tag("Queue: 0", "amber")
         self.chip_done = chip_tag("Completed: 0", "emerald")
         for c in (self.chip_speed, self.chip_stream, self.chip_queue, self.chip_done):
@@ -151,6 +154,16 @@ class DownloadsView(QWidget):
         left.addWidget(self.np_file)
         self.np_bar = styled_bar("primary")
         left.addWidget(self.np_bar)
+        self.details_btn = btn(
+            "Details", "ghost",
+            "Open the live session window — progress, stats and logs",
+            small=True)
+        self.details_btn.setFixedHeight(26)
+        self.details_btn.setIcon(icon("external", T_SEC, 13))
+        self.details_btn.setIconSize(QSize(13, 13))
+        self.details_btn.clicked.connect(lambda: self._open_details(
+            self.manager.active_tasks()[0] if self.manager.active_tasks() else None))
+        left.addWidget(self.details_btn, 0, Qt.AlignmentFlag.AlignLeft)
         leftw = QWidget()
         leftw.setLayout(left)
         np.addWidget(leftw, 1)
@@ -370,34 +383,63 @@ class DownloadsView(QWidget):
     def on_state_changed(self) -> None:
         m = self.manager
         rows = []
-        if m.active_task:
-            rows.append(QueueRow(m.active_task, 0, active=True))
+        active_tasks = m.active_tasks()
+        # All currently running tasks appear first as "active" rows
+        for i, t in enumerate(active_tasks):
+            rows.append(QueueRow(t, i, active=True))
         for i, t in enumerate(m.queue):
-            rows.append(QueueRow(t, i + (1 if m.active_task else 0)))
+            rows.append(QueueRow(t, len(active_tasks) + i))
         for r in rows:
             r.move_up.connect(lambda task: self.manager.move(task, True))
             r.move_down.connect(lambda task: self.manager.move(task, False))
             r.remove.connect(self.manager.remove)
+            r.inspect.connect(self._open_details)
         self.queue_host.set_items(rows)
         self.queue_empty.setVisible(not rows)
         self.chip_queue.setText(f"Queue: {len(m.queue)}")
         self.chip_done.setText(f"Completed: {len(m.finished_log)}")
-        task = m.active_task
-        if not task:
+        self.chip_stream.setText(
+            f"{len(active_tasks)}/{m.max_workers} streams · concurrent")
+
+        # Now-playing card: show first active task or idle message
+        if not active_tasks:
             self.np_title.setText("No active download")
             self.np_file.setText("The pipeline is idle — queue something from the Library.")
             self.step_chip.setText("Idle" if not m.queue else "Queued — waiting")
             self.np_bar.setValue(0)
         else:
-            self.np_title.setText(f"{task.series_name} — {len(task.urls)} video(s)")
+            task = active_tasks[0]
+            self.np_title.setText(
+                f"{task.series_name} — {len(task.urls)} video(s)"
+                + (f" ({task.label})" if task.label else ""))
             self.np_file.setText(task.save_dir)
             self.np_file.setToolTip(task.save_dir)
             snap = m.current_snapshot()
             self.np_bar.setValue(int((snap.get("progress") or 0) * 100))
+            self.step_chip.setText(
+                f"Downloading {len(active_tasks)} task(s)" if len(active_tasks) > 1
+                else "Downloading")
 
-    def on_event(self, ev: str, data: Dict[str, Any]) -> None:
+    # ---- per-session detail window ---------------------------------------
+    def _open_details(self, task: Optional[DownloadTask]) -> None:
+        if task is None:
+            return
+        key = id(task)
+        dlg = self._detail_dialogs.get(key)
+        if dlg is not None:
+            dlg.show()
+            dlg.raise_()
+            dlg.activateWindow()
+            return
+        dlg = DownloadDetailDialog(self.manager, task, self)
+        dlg.destroyed.connect(lambda *_: self._detail_dialogs.pop(key, None))
+        self._detail_dialogs[key] = dlg
+        dlg.show()
+
+    def on_event(self, task: object, ev: str, data: Dict[str, Any]) -> None:
         m = self.manager
-        task_name = m.active_task.series_name if m.active_task else "Download"
+        task_name = str(getattr(task, "series_name", "") or "") if task else "Download"
+        task_label = str(getattr(task, "label", "") or "") if task else ""
         if ev == "start":
             self.error_banner.hide()
             self._progress_active = False

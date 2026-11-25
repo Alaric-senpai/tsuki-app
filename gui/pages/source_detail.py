@@ -19,6 +19,7 @@ from media_ids import extract_video_id
 from ..components.primitives import (
     btn, chip_tag, mk_label, muted_label,
 )
+from ..components.source_card import SourceSeriesCard
 from ..components.stack_list import StackList
 from ..components.thumb import PosterThumb
 from ..dialogs.source_episodes import prompt_source_episodes
