@@ -36,19 +36,13 @@ export interface DownloadConsoleLine {
   line: string
 }
 
-export interface SeriesUsage {
-  seriesId: number
-  name: string
-  path: string
-  bytes: number
-  files: number
-}
+// Generated from the Rust `SeriesUsage`/`DiskUsage` structs by ts-rs.
+// `DownloadSnapshot` above stays hand-written: its `state` is a literal union
+// (the generated binding widens it to `string`), which the UI relies on.
+import type { SeriesUsage } from "./bindings/SeriesUsage"
+import type { DiskUsage } from "./bindings/DiskUsage"
 
-export interface DiskUsage {
-  series: SeriesUsage[]
-  totalBytes: number
-  totalFiles: number
-}
+export type { SeriesUsage, DiskUsage }
 
 export const EMPTY_DOWNLOAD_SNAPSHOT: DownloadSnapshot = {
   episodeId: 0,

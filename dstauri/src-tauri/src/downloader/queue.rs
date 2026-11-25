@@ -19,6 +19,7 @@ use serde::Serialize;
 use sqlx::SqlitePool;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::mpsc;
+use ts_rs::TS;
 
 use crate::db::queries;
 use crate::error::AppError;
@@ -40,10 +41,13 @@ const ACTIVE_STATES: [&str; 5] = ["queued", "paused", "resolving", "downloading"
 /// Maximum backoff between attempts (seconds).
 const MAX_BACKOFF_SECS: f64 = 30.0;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../lib/ipc/bindings/")]
 #[serde(rename_all = "camelCase")]
 pub struct DownloadSnapshot {
+    #[ts(as = "f64")]
     pub episode_id: i64,
+    #[ts(as = "f64")]
     pub series_id: i64,
     pub title: String,
     /// `queued` | `paused` | `resolving` | `downloading` | `retrying` |
@@ -51,7 +55,9 @@ pub struct DownloadSnapshot {
     pub state: String,
     pub attempt: u32,
     pub max_retries: u32,
+    #[ts(as = "f64")]
     pub downloaded_bytes: u64,
+    #[ts(as = "f64")]
     pub total_bytes: u64,
     pub speed_bps: f64,
     pub eta_sec: f64,
@@ -60,9 +66,11 @@ pub struct DownloadSnapshot {
     pub file_path: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../lib/ipc/bindings/")]
 #[serde(rename_all = "camelCase")]
 pub struct ConsoleLine {
+    #[ts(as = "f64")]
     pub episode_id: i64,
     pub line: String,
 }

@@ -7,25 +7,33 @@ use std::path::Path;
 
 use serde::Serialize;
 use sqlx::SqlitePool;
+use ts_rs::TS;
 
 use crate::db::queries;
 use crate::error::AppError;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../lib/ipc/bindings/")]
 #[serde(rename_all = "camelCase")]
 pub struct SeriesUsage {
+    #[ts(as = "f64")]
     pub series_id: i64,
     pub name: String,
     pub path: String,
+    #[ts(as = "f64")]
     pub bytes: u64,
+    #[ts(as = "f64")]
     pub files: u64,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export, export_to = "../../lib/ipc/bindings/")]
 #[serde(rename_all = "camelCase")]
 pub struct DiskUsage {
     pub series: Vec<SeriesUsage>,
+    #[ts(as = "f64")]
     pub total_bytes: u64,
+    #[ts(as = "f64")]
     pub total_files: u64,
 }
 

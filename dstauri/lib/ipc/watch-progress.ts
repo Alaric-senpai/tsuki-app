@@ -1,13 +1,8 @@
+import type { WatchProgress } from "./bindings/WatchProgress"
 import { ipcCall } from "./client"
 
-/** Saved playback position for one episode. */
-export interface WatchProgress {
-  episodeId: number
-  positionSec: number
-  durationSec: number
-  updatedAt: string
-  completed: boolean
-}
+/** Saved playback position for one episode (generated from Rust by ts-rs). */
+export type { WatchProgress }
 
 /** Fraction of the runtime after which an episode counts as watched. */
 export const WATCHED_THRESHOLD = 0.9
