@@ -99,7 +99,7 @@ export function TsukiSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
         <p className="telemetry px-2 pt-2 text-[0.5rem] text-muted-foreground/60">
-          v0.1.0 · local-first
+          v1.1.1 · local-first
         </p>
       </SidebarFooter>
     </Sidebar>

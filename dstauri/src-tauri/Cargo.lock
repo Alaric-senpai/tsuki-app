@@ -5546,7 +5546,7 @@ dependencies = [
 
 [[package]]
 name = "tsuki"
-version = "0.1.0"
+version = "1.1.1"
 dependencies = [
  "aes-gcm",
  "base64 0.23.1",

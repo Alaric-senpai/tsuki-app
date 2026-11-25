@@ -410,3 +410,5 @@ Gates: `bun run typecheck` clean, `bun run lint` 0 errors (8 warnings: 5 pre-exi
 | Packaging verification | pending | `release.yml` builds `appimage,deb,rpm`; local build not run here (no desktop packaging toolchain verified). |
 
 Gates: `cargo fmt --all -- --check` clean, `cargo clippy --all-targets -- -D warnings` clean, `cargo test --lib` 99 passed in 1.7 s; `bun run typecheck` clean, `bun run lint` 0 errors (9 warnings: 5 `<img>`, 4 `exhaustive-deps`), `bun run build` static export clean.
+
+Release decision: v1.1.1 (option A) — the remote v1.1.0 tag at legacy commit f900406 is preserved; release.yml now expects v1.1.1.

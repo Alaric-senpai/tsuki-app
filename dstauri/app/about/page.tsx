@@ -59,7 +59,7 @@ function InfoCard({ title, rows }: { title: string; rows: [string, string][] }) 
 }
 
 export default function AboutPage() {
-  const [version, setVersion] = useState("0.1.0")
+  const [version, setVersion] = useState("1.1.1")
 
   useEffect(() => {
     void getVersion()

@@ -84,8 +84,8 @@ jobs:
           APPLE_SIGNING_IDENTITY: ${{ startsWith(matrix.platform, 'macos-') && '-' || '' }}
         with:
           projectPath: dstauri
-          tagName: v__VERSION__
-          releaseName: v__VERSION__
+          tagName: v1.1.1
+          releaseName: v1.1.1
           releaseBody: |
             See the assets below to download this version.
             The Windows portable executable requires the Microsoft Edge WebView2 Runtime.
