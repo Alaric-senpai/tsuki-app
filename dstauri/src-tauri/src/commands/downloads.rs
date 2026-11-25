@@ -11,6 +11,14 @@ use crate::downloader::{self, DownloadSnapshot, Job, clamp_concurrency};
 use crate::error::AppError;
 use crate::state::AppState;
 
+/// True while a queue row still represents work in flight.
+fn is_active_snapshot_state(state: &str) -> bool {
+    matches!(
+        state,
+        "queued" | "paused" | "resolving" | "downloading" | "retrying"
+    )
+}
+
 /// Queue one episode download.
 #[tauri::command]
 pub async fn enqueue_episode_download(
@@ -39,6 +47,15 @@ pub async fn enqueue_episode(
     if episode.url.trim().is_empty() {
         return Err(AppError::download(
             "That episode has no page URL to download from.",
+        ));
+    }
+    if state
+        .downloads()
+        .snapshot(episode_id)
+        .is_some_and(|row| is_active_snapshot_state(&row.state))
+    {
+        return Err(AppError::download(
+            "That episode is already in the download queue.",
         ));
     }
 
@@ -281,7 +298,17 @@ pub fn set_background_downloads(
 
 #[cfg(test)]
 mod tests {
-    use super::clamp_concurrency;
+    use super::{clamp_concurrency, is_active_snapshot_state};
+
+    #[test]
+    fn enqueue_guard_recognises_every_active_state() {
+        for state in ["queued", "paused", "resolving", "downloading", "retrying"] {
+            assert!(is_active_snapshot_state(state), "{state}");
+        }
+        for state in ["done", "failed", "cancelled", "idle"] {
+            assert!(!is_active_snapshot_state(state), "{state}");
+        }
+    }
 
     #[test]
     fn concurrency_accepts_custom_values_up_to_the_safe_limit() {

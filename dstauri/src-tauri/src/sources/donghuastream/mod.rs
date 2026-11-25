@@ -282,6 +282,10 @@ pub fn parse_page(html: &str, page_url: &str) -> Result<ResolvedMedia, AppError>
         )
     })?;
 
+    // The site's mirrors are often protocol-relative (`//host/embed/...`).
+    // Always hand yt-dlp an absolute URL so the generic extractor accepts it.
+    let direct = super::absolute_media_url(&direct);
+
     let platform = if dailymotion_direct(&direct).is_some() {
         "dailymotion"
     } else {

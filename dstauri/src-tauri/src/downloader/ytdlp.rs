@@ -219,10 +219,9 @@ impl YtDlp {
         let detail = console.join("\n");
 
         let Some(final_path) = reported else {
-            return Err(AppError::download_with(
-                "yt-dlp finished without reporting an output file.",
-                detail,
-            ));
+            let message = ytdlp_error_line(&console)
+                .unwrap_or_else(|| "yt-dlp exited without producing an output file.".to_string());
+            return Err(AppError::download_with(message, detail));
         };
 
         // A merge/post-processing failure leaves a file that does not exist or
@@ -248,10 +247,9 @@ impl YtDlp {
         }
 
         if !exit_ok {
-            return Err(AppError::download_with(
-                "yt-dlp reported an error after writing the file.",
-                detail,
-            ));
+            let message = ytdlp_error_line(&console)
+                .unwrap_or_else(|| "yt-dlp exited with a non-zero status.".to_string());
+            return Err(AppError::download_with(message, detail));
         }
 
         Ok(final_path)
@@ -335,9 +333,23 @@ pub fn build_args(
         push(&mut args, &bytes.to_string());
     }
 
-    // The target URL is the last positional argument.
-    args.push(OsString::from(&options.media_url));
+    // The target URL is the last positional argument. Normalise here as a
+    // safety net for resolvers that still hand us a protocol-relative URL.
+    let media_url = crate::sources::absolute_media_url(&options.media_url);
+    args.push(OsString::from(media_url));
     args
+}
+
+/// The most recent yt-dlp `ERROR:` line, surfaced as the user-facing message.
+///
+/// Without this, a hard failure shows only the generic "no output file" text
+/// while the real reason stays buried in the console detail.
+fn ytdlp_error_line(console: &[String]) -> Option<String> {
+    console
+        .iter()
+        .rev()
+        .find(|line| line.trim_start().starts_with("ERROR:"))
+        .map(|line| line.trim().to_string())
 }
 
 fn push(args: &mut Vec<OsString>, value: &str) {
@@ -498,6 +510,30 @@ mod tests {
             .into_iter()
             .map(|value| value.to_string_lossy().to_string())
             .collect()
+    }
+
+    #[test]
+    fn build_args_makes_protocol_relative_urls_absolute() {
+        let mut options = options();
+        options.media_url = "//play.streamplay.co.in/embed/uuid".to_string();
+        let args = args_as_strings(&options);
+        assert_eq!(
+            args.last().map(String::as_str),
+            Some("https://play.streamplay.co.in/embed/uuid")
+        );
+    }
+
+    #[test]
+    fn the_real_yt_dlp_error_line_is_extracted() {
+        let console = vec![
+            "[generic] Extracting URL: https://play.streamplay.co.in/embed/uuid".to_string(),
+            "ERROR: Unsupported URL: https://play.streamplay.co.in/embed/uuid".to_string(),
+        ];
+        assert_eq!(
+            ytdlp_error_line(&console).as_deref(),
+            Some("ERROR: Unsupported URL: https://play.streamplay.co.in/embed/uuid")
+        );
+        assert_eq!(ytdlp_error_line(&[]), None);
     }
 
     #[test]

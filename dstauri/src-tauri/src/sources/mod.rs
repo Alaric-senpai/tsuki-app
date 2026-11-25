@@ -123,6 +123,20 @@ pub async fn fetch_text(url: &str) -> Result<String, AppError> {
 }
 
 /// True when a direct URL looks like an HLS manifest.
+/// Turn a protocol-relative URL (`//host/path`) into an absolute https URL.
+///
+/// DonghuaStream embeds several mirrors with `src="//host/..."`; yt-dlp's
+/// generic extractor cannot resolve those and reports `Unsupported URL`. All
+/// resolvers funnel their final media URL through this helper.
+pub fn absolute_media_url(raw: &str) -> String {
+    let trimmed = raw.trim();
+    if let Some(rest) = trimmed.strip_prefix("//") {
+        format!("https://{rest}")
+    } else {
+        trimmed.to_string()
+    }
+}
+
 pub fn is_hls_url(raw: &str) -> bool {
     let path = Url::parse(raw)
         .map(|url| url.path().to_lowercase())
@@ -149,6 +163,18 @@ mod tests {
             None
         );
         assert_eq!(source_for_url("not a url"), None);
+    }
+
+    #[test]
+    fn protocol_relative_media_urls_become_absolute() {
+        assert_eq!(
+            absolute_media_url("//play.streamplay.co.in/embed/uuid"),
+            "https://play.streamplay.co.in/embed/uuid"
+        );
+        assert_eq!(
+            absolute_media_url("  https://example.com/video.mp4  "),
+            "https://example.com/video.mp4"
+        );
     }
 
     #[test]
