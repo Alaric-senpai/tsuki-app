@@ -80,29 +80,44 @@ impl YtDlp {
     /// 1. `<app_data>/bin/` — written by the in-app updater, so it is newer than
     ///    whatever shipped in the bundle.
     /// 2. The directory holding the running executable — this is where Tauri
-    ///    places `externalBin` sidecars (`Contents/MacOS` on macOS).
+    ///    places `externalBin` sidecars (`Contents/MacOS` on macOS). Bundled
+    ///    sidecars use a private `tsuki-` prefix so Linux packages don't install
+    ///    over system `yt-dlp`/`ffmpeg`; the plain names are accepted as a
+    ///    fallback for older bundles.
     /// 3. `PATH` — the escape hatch for a system install.
     pub fn locate(data_dir: &Path) -> Result<Self, AppError> {
         let exe_dir = executable_dir();
-        let ytdlp_name = format!("yt-dlp{}", std::env::consts::EXE_SUFFIX);
-        let ffmpeg_name = format!("ffmpeg{}", std::env::consts::EXE_SUFFIX);
+        let suffix = std::env::consts::EXE_SUFFIX;
+        let ytdlp_name = format!("yt-dlp{suffix}");
+        let tsuki_ytdlp_name = format!("tsuki-yt-dlp{suffix}");
+        let ffmpeg_name = format!("ffmpeg{suffix}");
+        let tsuki_ffmpeg_name = format!("tsuki-ffmpeg{suffix}");
 
-        let program = find_binary(&ytdlp_name, data_dir, exe_dir.as_deref()).ok_or_else(|| {
-            let mut looked = vec![
-                data_dir.join("bin").join(&ytdlp_name).display().to_string(),
-                "PATH".to_string(),
-            ];
-            if let Some(dir) = &exe_dir {
-                looked.insert(1, dir.join(&ytdlp_name).display().to_string());
-            }
-            AppError::download_with(
-                "yt-dlp was not found. Reinstall the app, or place the binary in \
-                 the app's data folder under bin/.",
-                format!("looked for {ytdlp_name} in {}", looked.join(", ")),
-            )
-        })?;
+        let program = find_sidecar(&tsuki_ytdlp_name, &ytdlp_name, data_dir, exe_dir.as_deref())
+            .ok_or_else(|| {
+                let mut looked = vec![
+                    data_dir.join("bin").display().to_string(),
+                    "PATH".to_string(),
+                ];
+                if let Some(dir) = &exe_dir {
+                    looked.insert(1, dir.display().to_string());
+                }
+                AppError::download_with(
+                    "yt-dlp was not found. Reinstall the app, or place the binary in \
+                         the app's data folder under bin/.",
+                    format!(
+                        "looked for {tsuki_ytdlp_name} or {ytdlp_name} in {}",
+                        looked.join(", ")
+                    ),
+                )
+            })?;
 
-        let ffmpeg = find_binary(&ffmpeg_name, data_dir, exe_dir.as_deref());
+        let ffmpeg = find_sidecar(
+            &tsuki_ffmpeg_name,
+            &ffmpeg_name,
+            data_dir,
+            exe_dir.as_deref(),
+        );
 
         Ok(Self { program, ffmpeg })
     }
@@ -486,6 +501,18 @@ fn find_binary(name: &str, data_dir: &Path, exe_dir: Option<&Path>) -> Option<Pa
     which(name)
 }
 
+/// Prefer the private `tsuki-` sidecar shipped by the bundle, then fall back to
+/// the original name (updater copies, older bundles, and system installs).
+fn find_sidecar(
+    private_name: &str,
+    public_name: &str,
+    data_dir: &Path,
+    exe_dir: Option<&Path>,
+) -> Option<PathBuf> {
+    find_binary(private_name, data_dir, exe_dir)
+        .or_else(|| find_binary(public_name, data_dir, exe_dir))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -651,6 +678,25 @@ mod tests {
             find_binary(&name, &data_dir, Some(&exe_dir)),
             Some(data_dir.join("bin").join(&name)),
             "an updater copy wins over the bundled sidecar"
+        );
+    }
+
+    #[test]
+    fn private_sidecar_wins_over_the_legacy_name() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        let data_dir = temp.path().join("data");
+        let exe_dir = temp.path().join("app");
+        std::fs::create_dir_all(&exe_dir).expect("exe dir");
+
+        let private = format!("tsuki-yt-dlp{}", std::env::consts::EXE_SUFFIX);
+        let public = format!("yt-dlp{}", std::env::consts::EXE_SUFFIX);
+        std::fs::write(exe_dir.join(&private), b"private").expect("private sidecar");
+        std::fs::write(exe_dir.join(&public), b"legacy").expect("legacy sidecar");
+
+        assert_eq!(
+            find_sidecar(&private, &public, &data_dir, Some(&exe_dir)),
+            Some(exe_dir.join(&private)),
+            "the prefixed sidecar avoids depending on a system yt-dlp"
         );
     }
 }

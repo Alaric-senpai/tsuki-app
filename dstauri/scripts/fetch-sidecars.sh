@@ -5,6 +5,9 @@
 # from `tauri.conf.json` under `bundle.externalBin`. They are large and
 # platform-specific, so they are gitignored and fetched on demand (and in CI).
 #
+# The `tsuki-` prefix is deliberate: Linux packages install externalBin files
+# into /usr/bin, and plain `yt-dlp`/`ffmpeg` would conflict with distro packages.
+#
 # Usage:
 #   scripts/fetch-sidecars.sh                # host target triple
 #   scripts/fetch-sidecars.sh <triple>       # e.g. aarch64-apple-darwin
@@ -80,13 +83,13 @@ case "$triple" in
   *-pc-windows-*) suffix=".exe" ;;
 esac
 
-fetch "$ytdlp_url" "$out_dir/yt-dlp-$triple$suffix"
+fetch "$ytdlp_url" "$out_dir/tsuki-yt-dlp-$triple$suffix"
 
 # ffmpeg: prefer a static build that needs no system libraries. yt-dlp only
 # needs it to merge separate video+audio streams and remux containers.
-ffmpeg_dest="$out_dir/ffmpeg-$triple$suffix"
+ffmpeg_dest="$out_dir/tsuki-ffmpeg-$triple$suffix"
 if [[ -f "$ffmpeg_dest" && $force -eq 0 ]]; then
-  say "ffmpeg-$triple already present (use --force to refresh)"
+  say "tsuki-ffmpeg-$triple already present (use --force to refresh)"
 elif [[ -n "$suffix" ]]; then
   # Windows: gyan.dev builds are the de-facto standard.
   fetch "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" "$tmp/ffmpeg.zip"
@@ -116,6 +119,6 @@ else
   mv "$src" "$ffmpeg_dest"
 fi
 
-chmod +x "$out_dir/yt-dlp-$triple$suffix" "$ffmpeg_dest"
+chmod +x "$out_dir/tsuki-yt-dlp-$triple$suffix" "$ffmpeg_dest"
 say "sidecars ready for $triple:"
 ls -lh "$out_dir" | sed 's/^/    /'

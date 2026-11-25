@@ -55,8 +55,8 @@
       "icons/icon.ico"
     ],
     "externalBin": [
-      "binaries/yt-dlp",
-      "binaries/ffmpeg"
+      "binaries/tsuki-yt-dlp",
+      "binaries/tsuki-ffmpeg"
     ]
   }
 }
