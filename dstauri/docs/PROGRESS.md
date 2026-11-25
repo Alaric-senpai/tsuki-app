@@ -358,3 +358,20 @@ custom `Serialize` impl — both are intentional exceptions documented in
 YouTube client (search + disk cache, no API call on Explore mount) → AnimeCube
 scraper (RSC payload + decryption, fixture tests) → `/show` route → Add Series
 wizard (needs a Stitch screen decision) → source tabs → search pagination check.
+
+---
+
+## Phase 3 — Sources & Explore (2026-11)
+
+| Item | Status | Notes |
+|---|---|---|
+| YouTube client | done | `src-tauri/src/youtube.rs`: search.list + one videos.list, disk cache with TTL, pure formatting helpers, friendly errors. No API call until the user searches. |
+| YouTube UI | done | `lib/ipc/youtube.ts`, `hooks/use-youtube.ts`, `components/features/explore/youtube-panel.tsx`, `source-tabs.tsx`; Explore page branches on the active source. |
+| AnimeCube scraper | done (live remap) | Site changed: catalog marker `sourceKind:"admin_config"`, `animeCode` instead of `slug`, routes `/title/<code>` and `/watch/<code>`. Remapped cards/catalog/anime/episodes (`episodeGroups[].episodes[]`) + wired `explore_*` dispatch. |
+| AnimeCube playback resolve | **partial** | Old AES-GCM decrypt kept, but the site no longer exposes `anime-sources-versions` / `sources` in the page. 31 JS chunks had no literal `/api/` playback path. `resolve()` will fail honestly rather than invent a URL. |
+| `/show` route | done | Full details page (hero, episodes, recommendations, add-to-library) replacing the phase-3 stub. |
+| Source tabs | done | Replaced the dropdown with `SourceTabs` (`role="tablist"`). |
+| Search pagination | verified | `catalog_url` emits `/page/{n}/?s=` and `has_next_page` handles `rel=next`; no change needed. |
+| Add Series wizard | **blocked** | `AGENTS.md` §5 lists the Stitch screen as TBD. Need a Stitch screen or an approved fallback before building it. |
+
+Gates: `bun run typecheck` clean, `bun run lint` 0 errors (5 pre-existing `<img>` warnings), `bun run build` static export clean. Rust `cargo fmt`/`cargo check` clean; `cargo test --lib` result pending a background run at the time of writing.

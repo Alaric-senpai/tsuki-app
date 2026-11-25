@@ -12,6 +12,7 @@ use crate::db::queries;
 use crate::downloader::DownloadSnapshot;
 use crate::error::AppError;
 use crate::media_ids::extract_video_id;
+use crate::sources::animecube;
 use crate::sources::browse::{CatalogFilters, CatalogPage, SourceSeries};
 use crate::sources::donghuastream::browse::{self, CatalogQuery};
 use crate::state::AppState;
@@ -57,20 +58,23 @@ pub fn explore_sources() -> Vec<SourceInfo> {
         SourceInfo {
             key: "animecube".to_string(),
             label: "AnimeCube".to_string(),
-            available: false,
-            note: "Scraper lands in a later phase.".to_string(),
+            available: true,
+            note: "No account needed.".to_string(),
         },
         SourceInfo {
             key: "youtube".to_string(),
             label: "YouTube".to_string(),
-            available: false,
-            note: "Needs a YouTube Data API key in Settings.".to_string(),
+            available: true,
+            note: "Set an API key in Settings, then search.".to_string(),
         },
     ]
 }
 
 fn ensure_source(source: &str) -> Result<(), AppError> {
-    if source.trim().eq_ignore_ascii_case("donghuastream") {
+    let source = source.trim();
+    if source.eq_ignore_ascii_case("donghuastream")
+        || source.eq_ignore_ascii_case(animecube::SOURCE_KEY)
+    {
         Ok(())
     } else {
         Err(AppError::source_with(
@@ -89,7 +93,11 @@ pub async fn explore_filters(
 ) -> Result<CatalogFilters, AppError> {
     ensure_source(&source)?;
     let minutes = state.config()?.explore.cache_minutes;
-    browse::filters(minutes, refresh.unwrap_or(false)).await
+    if source.trim().eq_ignore_ascii_case(animecube::SOURCE_KEY) {
+        Ok(animecube::filters())
+    } else {
+        browse::filters(minutes, refresh.unwrap_or(false)).await
+    }
 }
 
 /// Trending / genre / search results. `query.limit == 0` uses the configured
@@ -107,7 +115,11 @@ pub async fn explore_catalog(
     if query.limit == 0 {
         query.limit = explore.result_limit as usize;
     }
-    browse::catalog(&query, explore.cache_minutes, refresh.unwrap_or(false)).await
+    if source.trim().eq_ignore_ascii_case(animecube::SOURCE_KEY) {
+        animecube::catalog(&query, query.limit).await
+    } else {
+        browse::catalog(&query, explore.cache_minutes, refresh.unwrap_or(false)).await
+    }
 }
 
 /// Full details for one remote series, including its episode list.
@@ -120,7 +132,11 @@ pub async fn explore_series(
 ) -> Result<SourceSeries, AppError> {
     ensure_source(&source)?;
     let minutes = state.config()?.explore.cache_minutes;
-    browse::series(&id, minutes, refresh.unwrap_or(false)).await
+    if source.trim().eq_ignore_ascii_case(animecube::SOURCE_KEY) {
+        animecube::series(&id).await
+    } else {
+        browse::series(&id, minutes, refresh.unwrap_or(false)).await
+    }
 }
 
 /// Add a remote series to the library, optionally queueing the selected
@@ -143,7 +159,11 @@ pub async fn import_source_series(
 ) -> Result<SourceImportResult, AppError> {
     ensure_source(&source)?;
     let minutes = state.config()?.explore.cache_minutes;
-    let remote = browse::series(&id, minutes, false).await?;
+    let remote = if source.trim().eq_ignore_ascii_case(animecube::SOURCE_KEY) {
+        animecube::series(&id).await?
+    } else {
+        browse::series(&id, minutes, false).await?
+    };
 
     let selected: Vec<&crate::sources::browse::SourceEpisode> = if episode_urls.is_empty() {
         remote.episodes.iter().collect()

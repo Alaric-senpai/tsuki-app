@@ -9,3 +9,4 @@ pub mod migrate;
 pub mod player;
 pub mod updates;
 pub mod watch_progress;
+pub mod youtube;

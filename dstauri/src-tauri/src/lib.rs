@@ -8,6 +8,7 @@ mod media_ids;
 mod migrate;
 mod sources;
 mod state;
+mod youtube;
 
 use tauri::Manager;
 use tauri::menu::{Menu, MenuItem};
@@ -282,6 +283,11 @@ pub fn run() {
             commands::watch_progress::get_watch_progress,
             commands::watch_progress::clear_watch_progress,
             commands::watch_progress::all_watch_progress,
+            commands::youtube::youtube_search,
+            commands::youtube::youtube_trending,
+            commands::youtube::youtube_video,
+            commands::youtube::youtube_clear_cache,
+            commands::youtube::youtube_discover,
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|err| {

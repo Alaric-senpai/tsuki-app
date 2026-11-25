@@ -7,6 +7,7 @@
 //! All network access lives here (and in the downloader) — the frontend never
 //! talks to third-party sites.
 
+pub mod animecube;
 pub mod browse;
 pub mod cache;
 pub mod donghuastream;
@@ -51,6 +52,8 @@ pub fn source_for_url(raw: &str) -> Option<&'static str> {
         .and_then(|url| url.host_str().map(str::to_lowercase))?;
     if media_ids::is_donghuastream_host(&host) {
         Some(donghuastream::SOURCE_KEY)
+    } else if animecube::is_animecube_host(&host) {
+        Some(animecube::SOURCE_KEY)
     } else {
         None
     }
@@ -68,12 +71,13 @@ pub fn supports(raw: &str) -> bool {
 pub async fn resolve_for_download(page_url: &str) -> Result<Option<ResolvedMedia>, AppError> {
     match source_for_url(page_url) {
         Some(donghuastream::SOURCE_KEY) => Ok(Some(donghuastream::resolve(page_url).await?)),
+        Some(animecube::SOURCE_KEY) => Ok(Some(animecube::resolve(page_url).await?)),
         _ => Ok(None),
     }
 }
 
 /// Shared HTTP client (connection pooling, rustls, compressed responses).
-fn client() -> Result<&'static reqwest::Client, AppError> {
+pub(crate) fn client() -> Result<&'static reqwest::Client, AppError> {
     static CLIENT: OnceLock<Result<reqwest::Client, String>> = OnceLock::new();
     let built = CLIENT.get_or_init(|| {
         reqwest::Client::builder()

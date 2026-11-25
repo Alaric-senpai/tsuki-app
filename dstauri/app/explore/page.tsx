@@ -6,7 +6,8 @@ import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 
 import { PageHeader } from "@/components/common/page-header"
 import { Button } from "@/components/ui/button"
-import { SourceDropdown } from "@/components/features/explore/source-dropdown"
+import { SourceTabs } from "@/components/features/explore/source-tabs"
+import { YouTubePanel } from "@/components/features/explore/youtube-panel"
 import {
   FilterBar,
   defaultFilters,
@@ -18,6 +19,7 @@ import {
   useExploreFilters,
   useExploreSources,
 } from "@/hooks/use-explore"
+import { useYouTubeExplore } from "@/hooks/use-youtube"
 import type { CatalogQuery } from "@/lib/ipc/explore"
 
 const DEFAULT_SOURCE = "donghuastream"
@@ -25,6 +27,7 @@ const DEFAULT_SOURCE = "donghuastream"
 export default function ExplorePage() {
   const router = useRouter()
   const sources = useExploreSources()
+  const youtube = useYouTubeExplore()
   const [activeSource, setActiveSource] = useState(DEFAULT_SOURCE)
   const [filters, setFilters] = useState<ExploreFiltersState>(defaultFilters)
   const [page, setPage] = useState(1)
@@ -97,7 +100,7 @@ export default function ExplorePage() {
         title="Explore"
         description="Remote catalog: search, genres, and trending."
         actions={
-          <SourceDropdown
+          <SourceTabs
             sources={sources.data}
             active={activeSource}
             onSelect={handleSourceChange}
@@ -105,6 +108,19 @@ export default function ExplorePage() {
         }
       />
 
+      {activeSource === "youtube" ? (
+        <main className="flex-1 overflow-y-auto px-6 py-6">
+          <YouTubePanel
+            videos={youtube.videos}
+            loading={youtube.loading}
+            error={youtube.error}
+            searched={youtube.searched}
+            query={youtube.query}
+            onSearch={youtube.search}
+            onTrending={youtube.trending}
+          />
+        </main>
+      ) : (
       <main className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
         <FilterBar
           filters={filters}
@@ -153,6 +169,7 @@ export default function ExplorePage() {
           </nav>
         ) : null}
       </main>
+      )}
     </div>
   )
 }
