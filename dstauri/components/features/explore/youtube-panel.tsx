@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { useState } from "react"
 import { SearchIcon, TrendingUpIcon } from "lucide-react"
 
@@ -97,12 +98,14 @@ export function YouTubePanel({
               className="group space-y-2 rounded-xl border border-border/50 bg-surface-low p-2 transition-colors hover:border-primary/50"
             >
               <div className="relative overflow-hidden rounded-lg aspect-video bg-muted">
-                <img
+                <Image
                   src={video.thumbnail}
                   alt=""
+                  fill
+                  unoptimized
+                  sizes="(max-width:640px) 100vw,25vw"
                   loading="lazy"
-                  decoding="async"
-                  className="size-full object-cover transition-transform group-hover:scale-105"
+                  className="object-cover transition-transform group-hover:scale-105"
                 />
                 {video.duration ? (
                   <span className="telemetry absolute bottom-1.5 right-1.5 rounded bg-black/75 px-1.5 py-0.5 text-[0.6rem] text-white">

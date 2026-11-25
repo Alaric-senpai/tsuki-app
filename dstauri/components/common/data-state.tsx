@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { useState } from "react"
 import { AlertTriangleIcon, CopyIcon, RefreshCwIcon } from "lucide-react"
 
@@ -24,12 +25,14 @@ export function LoadingGrid({
         className,
       )}
     >
-      <img
+      <Image
         src="/assets/loading.jpeg"
         alt=""
+        width={96}
+        height={96}
+        unoptimized
         className="size-24 opacity-40 animate-pulse"
         loading="lazy"
-        decoding="async"
         aria-hidden
       />
       <div

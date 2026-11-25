@@ -17,10 +17,11 @@ export function MiniPlayer() {
   const router = useRouter()
   const [video, setVideo] = useState<HTMLVideoElement | null>(null)
   const player = usePlayer(video, "auto")
+  const { engine, load } = player
 
   useEffect(() => {
-    if (source && player.engine) void player.load(source)
-  }, [source, player.engine, player.load])
+    if (source && engine) void load(source)
+  }, [source, engine, load])
 
   const expand = useCallback(() => {
     if (!source) return

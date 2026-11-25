@@ -33,23 +33,24 @@ export function VideoSurface({
 }: VideoSurfaceProps) {
   const [video, setVideo] = useState<HTMLVideoElement | null>(null)
   const player = usePlayer(video, preference)
+  const { engine, load, on } = player
 
   useEffect(() => {
-    if (!player.engine) return
-    void player.load(source, startAt ?? 0)
-  }, [player.engine, player.load, source, startAt])
+    if (!engine) return
+    void load(source, startAt ?? 0)
+  }, [engine, load, source, startAt])
 
   useEffect(() => {
     if (!onProgress) return
-    return player.on("timeupdate", ({ position, duration }) => {
+    return on("timeupdate", ({ position, duration }) => {
       onProgress(position, duration)
     })
-  }, [player.engine, player.on, onProgress])
+  }, [on, onProgress])
 
   useEffect(() => {
     if (!onEnded) return
-    return player.on("ended", onEnded)
-  }, [player.engine, player.on, onEnded])
+    return on("ended", onEnded)
+  }, [on, onEnded])
 
   return (
     <div

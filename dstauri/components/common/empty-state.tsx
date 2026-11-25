@@ -1,3 +1,4 @@
+import Image from "next/image"
 import type { LucideIcon } from "lucide-react"
 import type { ReactNode } from "react"
 
@@ -13,12 +14,14 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/70 bg-surface-low/40 px-6 py-16 text-center">
-      <img
+      <Image
         src="/assets/empty-state-mascot.jpeg"
         alt=""
+        width={96}
+        height={96}
+        unoptimized
         className="size-24 rounded-full opacity-50"
         loading="lazy"
-        decoding="async"
         aria-hidden
       />
       <div className="space-y-1">

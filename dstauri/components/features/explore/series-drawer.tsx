@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { useCallback } from "react"
 import { DownloadIcon, XIcon } from "lucide-react"
 
@@ -60,9 +61,12 @@ export function SeriesDrawer({
                 {/* Thumbnail + title + meta */}
                 <div className="flex gap-3">
                   {series.thumbnail && (
-                    <img
+                    <Image
                       src={series.thumbnail}
                       alt={series.title}
+                      width={80}
+                      height={120}
+                      unoptimized
                       className="w-20 shrink-0 rounded-lg object-cover aspect-[2/3]"
                     />
                   )}

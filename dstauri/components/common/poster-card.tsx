@@ -1,3 +1,4 @@
+import Image from "next/image"
 import type { CSSProperties, ReactNode } from "react"
 import { PlayIcon } from "lucide-react"
 
@@ -36,12 +37,14 @@ export function PosterCard({
         className="aspect-[2/3] w-full bg-[radial-gradient(circle_at_30%_15%,var(--surface-highest),var(--surface-lowest)_72%)] bg-cover bg-center transition-transform duration-500 group-hover:scale-[1.03]"
       >
         {!imageUrl && (
-          <img
+          <Image
             src="/assets/placeholder-thumbail.jpeg"
             alt=""
-            className="absolute inset-0 w-full h-full object-cover opacity-60"
+            fill
+            unoptimized
+            sizes="(max-width:640px) 50vw,25vw"
+            className="object-cover opacity-60"
             loading="lazy"
-            decoding="async"
             aria-hidden
           />
         )}
