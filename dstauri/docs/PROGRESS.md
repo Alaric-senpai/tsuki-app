@@ -1,0 +1,331 @@
+# Tsuki — Progress
+
+A running log of what is done, what is next, known issues, and open questions.
+Update this at the end of every working session (see `AGENTS.md` §13).
+
+---
+
+## Current session — Explore/item, player, downloads, updates & settings
+
+**Status: the 14-task UX batch, the follow-up fix batch, and the 12 runtime-issue fixes are implemented. All gates are green, including `cargo test` (55 passed).**
+
+### Done — 14-task batch
+- Explore now shows only the active remote source; cards navigate to a dedicated `/item?source=&id=` screen (hero, metadata, genres, recommendations, episodes `DataTable`) with source-driven pagination.
+- Add-to-library dialog: append the selected episodes to an existing library entry or create a new one (the per-series folder is created), with a bottom-right sonner toast on every action.
+- Realtime library sync via `library://changed` events; queued episodes are re-enqueued on startup and progress is visible in the tray with completion notifications.
+- Two player routes: `/stream` (online, resolved through `resolve_playable` + react-player) and `/watch` (local file via `convertFileSrc`, with an "Open in my player" hand-off).
+- Downloads centre: queue/waiting/failed/completed `DataTable`s with row actions, an active-session stats row (speed/ETA/bytes), a console drawer with copy, and global actions with toasts.
+- Stream/Watch column on the series and online-item tables, keyed to episode status.
+- Settings: update-source picker (`donghuastream`/`animecube`, never YouTube) and a conditional Legacy section that detects a legacy install and lets the user pull/map its catalog into SQLite.
+- Home: Updates section for series opted into update checks; SQL statement logging removed from startup logs.
+
+### Done — follow-up fix batch
+- Base UI `nativeButton={false}` on every Link-rendered Button (fixes the Downloads/console warning).
+- Series detail refreshes the episodes table and summary after a single or bulk delete.
+- Batch downloads preserve the user's selection order (FIFO) instead of database order.
+- New library entries download and cache the source banner instead of showing the mascot placeholder.
+- `/watch` resolves the finished file path from the database, so it works after a restart or after the queue is cleared (migration `0005_episode_file_path.sql`).
+- `PlayerSurface` shows loading and copyable error states instead of a blank video box; player components remount when the source changes.
+- Download queue is now concurrent and configurable (`concurrent_downloads`, default 3, FIFO-admitted) with `set_download_concurrency`; `AGENTS.md` records the approved override of the old sequential constraint.
+
+### Done — post-restart fixes
+- sqlx statement logging is fully off (`log_statements(Off)`) and the `sqlx` target is filtered to `Error`, so startup no longer floods the log with full SQL statements.
+- The main window is visible at creation (`tauri.conf.json` `visible: true`) and the `on_page_load` manual `show()` hook was removed — this was causing the GTK `gtk_widget_get_scale_factor` assertion and a GUI that never appeared.
+
+### Done — 12 runtime-issue fixes
+- Player no longer hard-errors on `canPlay()===false` (Dailymotion/streamplay now render); Link-rendered Buttons use `nativeButton={false}` on `/item`.
+- Concurrent queue uses one `Arc<Semaphore>` with `add_permits`/`forget_permits` so changing the limit mid-batch wakes waiters; finished rows are removed from the live queue.
+- yt-dlp runs with `--no-warnings` and fails fast on permanent `Unsupported URL` errors instead of retrying five times.
+- Explore pagination uses the site's real `/anime/pagg/{n}/` path; loading skeletons use the poster grid's column classes; the series parser accepts `-partN` episode URLs.
+- Startup resume walks queued ids in ASC insertion order (no 50-row cap); update checks de-duplicate by canonical URL, media id and episode number.
+- A banner runner (`resync_remote_banners` + Settings "Refresh") caches missing artwork from the source; `/watch` uses a plain `<video>` via `convertFileSrc`; series download actions show toasts.
+
+### Verification — all green
+- `cargo clippy --all-targets -- -D warnings`: clean (after a `collapsible_if` → let-chain fix in `downloaded_episode_path`).
+- `cargo check`, `cargo test --quiet` (55 passed, 0 failed), `bun run typecheck`, `bun run lint` (0 errors, 4 pre-existing `<img>` warnings), `bun run build` (14/14 static pages): all green.
+
+### Known issues / next
+- AnimeCube is still not implemented as a remote source; YouTube search is not wired into Explore.
+- `docs/decisions/player.md` (Phase 0b spike) has not been written; playback currently uses react-player with a server-resolved URL.
+- Search-mode pagination (`/page/{n}/?s=`) is unverified against the live site; catalog pagination is confirmed working.
+
+---
+
+## Current session — Phase 2 downloader, DonghuaStream first
+
+**Status: episodes download for real. Rust owns yt-dlp, the sequential queue, retries and completion; the UI enqueues and watches events.**
+
+### Done
+
+- **Source resolution ported (`src-tauri/src/sources/`).**
+  - `mod.rs` — `ResolvedMedia { url, title, platform, video_id, is_hls, source }`, `source_for_url`,
+    `resolve_for_download`, one shared `reqwest` client (rustls, gzip/brotli, browser UA), `fetch_text`, `is_hls_url`.
+  - `donghuastream.rs` — port of `DonghuaStreamSource.resolve`: episode-URL normalisation, Dailymotion
+    embed → canonical `dailymotion.com/video/<id>`, lazy-load players (`data-litespeed-src` before `src`,
+    `about:blank` skipped), direct-file preference, `<h1>`/`<title>` title with HTML-entity decoding,
+    HTML comments stripped. Pure parser + unit tests, including a **fixture trimmed from a live episode page**
+    (`src-tauri/tests/fixtures/donghuastream_episode.html`, 2026-11-23).
+  - Verified against the live site with `curl` and `yt-dlp -F` (formats `hls-380 … hls-1080`), then a real
+    `yt-dlp` run using the exact argument list the Rust driver builds.
+- **Download engine (`src-tauri/src/downloader/`).**
+  - `quality.rs` — 360p–1080p + Best Available format selectors and `merge_container`.
+  - `archive.rs` — `downloaded.txt` create/append keyed by the **stable page URL's** video ID, never the
+    transient CDN URL.
+  - `ytdlp.rs` — `tokio::process` driver: locate `<data_dir>/bin/yt-dlp` then `PATH`; 10 transport + 10 fragment
+    retries, 3 extractor/file-access retries, 30 s socket timeout; `--no-skip-unavailable-fragments`,
+    `--restrict-filenames`, `--no-simulate`; `%`-escaped safe-title output template; machine-readable
+    `--progress-template "download:TSKPROG|…"`; `--print-to-file after_move:filepath`; optional cookies,
+    subtitles (SRT) and rate limit. Success requires the reported final file to exist with **nonzero size**.
+    Cancellation kills the child; stdout/stderr streamed via `tokio::select!`.
+  - `queue.rs` — sequential worker over an unbounded command channel. Resolve → attempt loop with
+    `min(30, 2 × attempt)` backoff; **failures surface only after the retry budget is exhausted**; retry noise
+    goes to the console. Merge/postprocess failures purge intermediates before retrying. Completion writes the
+    archive, sets the episode `downloaded`; cancel resets it to `pending`. Snapshots + cancel flags behind
+    `Arc<Mutex<…>>`.
+  - `mod.rs` — `normalize_browser` maps the UI's `none/off/false/…` sentinels to `None` so yt-dlp never gets
+    `unsupported browser: "none"`.
+- **IPC and events.**
+  - `commands/downloads.rs`: `enqueue_episode_download`, `cancel_episode_download`, `download_queue`, `download_state`.
+  - Job settings read from JSON config (`default_quality`, `default_container`, `sub_langs`, `max_retries`,
+    `rate_limit_mb`, `browser_cookies`); save folder from the series row or `global_save_dir`.
+  - Events: `download://state` (camelCase `DownloadSnapshot`) and `download://console` (`{ episodeId, line }`).
+  - `AppState` now owns the `DownloadManager`; new DB helpers `set_episode_status_by_id`, `episode_job_context`.
+  - `error.rs` gained `Source`/`Download` variants (`code` = `source`/`download`) with copyable detail.
+- **Frontend wiring (hooks → `lib/ipc/*`, never raw `invoke`).**
+  - `lib/ipc/downloads.ts`, `hooks/use-downloads.ts` (initial `download_queue` + both event listeners,
+    per-episode console ring buffer of 120 lines).
+  - `components/common/console-view.tsx` (colorized, copyable), `components/features/downloads/download-queue-item.tsx`
+    (progress, speed/ETA/format telemetry, cancel, copyable failure panel),
+    `components/features/downloads/episode-status-list.tsx`.
+  - `app/downloads/page.tsx` rewritten: live queue + migrated **Waiting in queue / Needs attention / Completed**
+    sections, engine status chip, archive sync, retry action, catalog refresh when a job settles.
+  - `app/series/page.tsx` episode row menu gained **Download** (disabled when already downloaded) with an inline
+    copyable error panel. No toasts (no Toaster is mounted).
+- **Pre-existing lint debt cleared** so the gates are green: `data-table.tsx` de-`any`'d into a generic
+  `DataTable<T>` with a structural column type; `series-grid.tsx` `onEdit` typed and actually wired to a hover
+  edit button; unescaped quotes and hook deps fixed in `app/series/page.tsx`; a `use-library.ts` return-type bug
+  in `remove` fixed.
+- **Quality gates (all run, all green).**
+  - `cargo fmt` — applied.
+  - `cargo clippy --all-targets -- -D warnings` — clean.
+  - `cargo test` — **44 passed, 0 failed**.
+  - `bun run typecheck` — clean.
+  - `bun run lint` — **0 errors**, 11 pre-existing warnings (unused locals, `<img>` advisories).
+  - `bun run build` — static export succeeded, 12 pages.
+
+### Not done yet (deliberately deferred)
+
+- Priority reorder, pause/resume and stop-current-without-cancel; queue is sequential with cancel + retry only.
+- Per-series quality override (the new schema has no such column); config default is used.
+- yt-dlp/ffmpeg are resolved from `<app_data_dir>/bin` then `PATH` — **not bundled sidecars yet**, and the
+  in-app yt-dlp updater is not built.
+- AnimeCube and YouTube sources; Explore remote search still a placeholder.
+- No end-to-end download driven through the running GUI yet — the engine was verified via unit tests, a live
+  page fixture, and a real `yt-dlp` invocation with the generated arguments.
+
+---
+
+## Current session — Stitch UI pass, banners and editing
+
+**Status: banners resolve from the legacy cache, series/library/settings are editable through popups, and episode lists use TanStack Table.**
+
+### Done
+
+- **Legacy artwork is resolved and cached.**
+  - `tools/export_legacy.py` now exports `posterVideoId` (first episode fallback).
+  - New `0002_series_banners.sql` adds `banner_path` and `banner_source`; `0001_init.sql` was not edited.
+  - Startup backfills banners from `~/.cache/donghua-stream/thumbs/<video_id>.jpg` into
+    `<app_data_dir>/cache/banners/<series_id>.jpg`, even when the legacy catalog import flag is already set.
+  - User-chosen (`custom`) banners are never overwritten. Current catalog: **17 of 27 series have cached banners**.
+  - Rust serves banners as data URLs generated in-process; no new crates, asset-protocol scope, or file dialog plugin.
+- **Home hero is now a cinematic spotlight.**
+  - `HeroSpotlight` uses the most recent downloaded episode plus its series details, banner, status, metadata, synopsis and CTAs.
+  - Loading, empty and copyable error states are included.
+- **Series detail follows the Stitch dossier structure.**
+  - `SeriesDetailHero` adds ambient artwork, poster/status/score treatment, native titles, technical pills, synopsis, CTA row, health strip, save-folder line and archive sync.
+  - Episode lists now render through a reusable TanStack Table (`@tanstack/react-table` v9) with row action dropdowns.
+  - Downloads inherits the same table via `EpisodeList`.
+- **Library is paginated and editable.**
+  - Default 15 items per page; page-size dropdown offers 15/30/50/All.
+  - Filters/search reset pagination.
+  - Series cards expose an edit action outside the detail link; `SeriesEditSheet` edits name, description, save folder and banner source through a popup.
+  - “Copy from legacy cache” re-runs banner backfill.
+- **Settings is no longer directly editable.**
+  - Restricted values use dropdowns; text/number fields open popup dialogs via `SettingDialog`.
+  - Player, Explore and YouTube sections use validated structured Rust commands.
+  - Legacy migration path is display-only with an edit dialog and re-run action.
+- **Static SPA constraints preserved.**
+  - No page/UI component calls `invoke` directly; IPC stays behind `lib/ipc/*` and hooks.
+  - No shadcn/network component installs, no `components/ui/*` edits, no new dependencies.
+- **Quality gates rerun after the full pass.**
+  - `bun run typecheck` — passed.
+  - `bun run lint` — passed.
+  - `bun run build` — passed (12 static pages).
+  - `cargo fmt` — passed.
+  - `cargo clippy --all-targets -- -D warnings` — passed.
+  - `cargo test` — pending final Rust-layer report.
+
+---
+
+## Current session — data migration and migrated-data screens
+
+**Status: migrated catalog is live in the app; screens now read it through Rust IPC.**
+
+### Done
+
+- **Background dev server is running.**
+  - Launched with `setsid nohup bun run tauri dev > /tmp/opencode/tsuki-tauri-dev-20261122.log 2>&1 < /dev/null &`
+  - Verified `curl http://localhost:3000` → `200`.
+  - Log shows `main webview finished loading` and live SQLite queries from the pages.
+  - Rust rebuilds/restarts have kept `target/debug/tsuki`, `tauri dev`, and `next dev` alive.
+- **Legacy data migration verified.**
+  - `tools/export_legacy.py` exported the active PostgreSQL catalog to
+    `~/.local/share/com.alaricsenpai.tsuki/legacy-export.json`.
+  - Startup import created **27 series / 395 episodes** in `tsuki.db`.
+  - Statuses: `downloaded 108`, `failed 25`, `pending 190`, `queued 72`.
+  - `meta.legacy_data_imported` and `meta.legacy_data_imported_at` are set, so startup skips re-import.
+  - Legacy `key` and `video_id` values are preserved so archives and on-disk media still match.
+- **Rust read model extended.**
+  - `SeriesSummary` now includes `failedEpisodes` and `queuedEpisodes`.
+  - `LibraryStats` now includes `queuedCount`.
+  - `EpisodeWithSeries` + `recent_episodes(status, limit)` provide cross-library episode lists for Home/Downloads.
+  - `legacy_export_path` command exposes the default export path to Settings.
+- **Frontend IPC/hooks layer added.**
+  - `lib/ipc/{client,library,config,migrate}.ts` wrap `trackedInvoke`; components never call `invoke`.
+  - `hooks/use-async-resource.ts` and `hooks/use-library.ts` provide typed loading/error/refresh state.
+  - Static browser preview uses explicit empty fallbacks when Tauri IPC is unavailable.
+- **Reusable data components added.**
+  - `components/common/{data-state,stat-grid,progress-bar}.tsx`.
+  - `components/features/library/{series-card,series-grid}.tsx`.
+  - `components/features/series/{episode-row,episode-list}.tsx`.
+  - `components/features/home/home-sections.tsx`.
+  - `components/features/settings/settings-panel.tsx`.
+- **Screens wired to migrated data.**
+  - Home: real stats, recent downloads, and library posters.
+  - Library: searchable/filterable real series grid plus archive sync.
+  - Series: query-param detail (`/series?id=…`), real episode list with status filters.
+  - Downloads: real queued/failed/downloaded episode lists; clearly labelled as migrated status, not a live queue.
+  - Explore: local catalog search from migrated data; remote source tabs explicitly state scrapers are not wired.
+  - Settings: real config editor for known settings, config-backed migration status, and re-run import.
+- **Shared layout preserved.**
+  - All page-level `AppShell` imports removed; only `app/layout.tsx` owns the shell.
+- **Quality gates rerun after the changes.**
+  - `bun run typecheck` — passed.
+  - `bun run lint` — passed.
+  - `bun run build` — passed; static export produced 10 routes.
+  - `cargo fmt` — passed.
+  - `cargo clippy --all-targets -- -D warnings` — passed.
+  - `cargo test` intentionally deferred per instruction (“skip unit tests to be done at the end”).
+
+---
+
+## Phase 0 — Foundations
+
+**Status: UI shell/design system and core Rust config/DB foundations complete. Remaining scaffold items are listed below.**
+
+### Done
+
+- Rename to Tsuki (`productName`, bundle id, npm/Cargo package names, window title).
+- Stitch tokens extracted into `app/globals.css` and `docs/design/tokens.md`.
+- Fonts + metadata in `app/layout.tsx`.
+- `AppShell`, `Sidebar`, `TopBar`, and shared common components.
+- Static SPA config (`output: 'export'`, unoptimized images); all routes prerender.
+- Config layer (`error.rs`, `config.rs`, `state.rs`, config commands) with atomic private writes and legacy config import.
+
+### Not done yet
+
+- Remaining `AGENTS.md` §3 dependencies/plugins: `tauri-specta`, dialog/fs/clipboard/notification/window-state/single-instance, reqwest/scraper, etc.
+- Real CSP and capabilities for every plugin; `externalBin` sidecars for `yt-dlp` / `ffmpeg`.
+- Generated typed IPC bindings from Rust (current types are hand-maintained in `lib/ipc/*`).
+- CI additions for the quality gates.
+
+---
+
+## Phase 0b — Player spike
+
+**Status: not started.**
+
+Needs a decision recorded in `docs/decisions/player.md`: embedded engine that plays local MKV/MP4 and remote HLS with custom headers, seeks cleanly, works fullscreen on Wayland and X11.
+
+---
+
+## Phase 1 — Data
+
+**Status: core complete for the migrated catalog.**
+
+- SQLite via `sqlx` at `<app_data_dir>/tsuki.db`; WAL, foreign keys, busy timeout, migrations in `src-tauri/migrations/`.
+- `db/models.rs`, `db/queries.rs`, `media_ids.rs`, archive repair/sync, and library commands.
+- Staged legacy import implemented and verified; no PostgreSQL client in the shipped app.
+- Library and Home read real migrated data through hooks → `lib/ipc/*` → commands.
+
+---
+
+## Phase 2 — Downloader (in progress)
+
+DonghuaStream downloads work end to end in Rust: resolve → yt-dlp → retry with backoff → verified merged file →
+archive + DB status, streamed to the UI over `download://state` / `download://console`. See the current-session
+entry above for what is deferred (priority/pause, sidecar bundling, updater).
+
+## Phases 3–5 — Not started
+
+Remote source scrapers/Explore search (AnimeCube, YouTube), player engine/adapters, notifications/packaging polish.
+Explore/Show/Watch screens still show honest placeholders where those engines do not exist yet.
+
+---
+
+## Known issues
+
+- `node_modules/next/dist/docs` is absent in this install, so the injected Next.js “read the relevant guide” instruction could not be satisfied literally; static SPA rules from `AGENTS.md` were followed instead.
+- Stitch screenshot parity has **not** been re-checked after wiring; only the extracted HTML structure and token system were used.
+- Relaunching `bun run tauri dev` after Rust changes is required; the dev process had exited and was restarted from `dstauri/`.
+- Downloads now runs a real yt-dlp queue for DonghuaStream. Remote scrapers (AnimeCube/YouTube) and the media
+  player are still not wired.
+- yt-dlp and ffmpeg must currently be installed on `PATH` (or dropped into `<app_data_dir>/bin`); nothing is
+  bundled yet, so a fresh machine without them gets a friendly "yt-dlp was not found" error.
+- The download queue is in-memory: jobs queued in a previous app run are not resumed, and episodes left `queued`
+  in the DB from the migration are not auto-started.
+- `bun run lint` still reports 11 pre-existing warnings (unused locals, `<img>` advisories); zero errors.
+- Static `next dev` preview without Tauri shows empty fallbacks by design.
+- A harmless Base UI console warning remains for sidebar tooltip triggers rendered as links.
+- Rust unit tests exist and run (44 passing, including scrapers, quality, archive, media IDs, config).
+  Frontend unit tests and e2e tests are still deferred.
+- `dstauri/AGENTS.md` still has older scaffold wording in places; root `AGENTS.md` is the source of truth.
+
+---
+
+## Open questions
+
+- [ ] Embedded player engine result of the spike (§8) — blocks Phase 4 UI.
+- [x] Legacy data import in v1 — implemented via staged JSON; startup runs it when the flag is unset.
+- [ ] Bundle `ffmpeg` (size) or require it on `PATH`?
+- [ ] Target platforms for release builds (Linux only, or + Windows/macOS)?
+
+---
+
+## Repo unification (2026-11)
+
+`dstauri/` used to be a nested git repository, so GitHub never saw the Tauri app
+as part of Donghua-stream. It was merged into the base repo as a subtree:
+
+- History: `a5f5544 feat: initial commit` is now an ancestor of `main` via merge
+  commit `7fd2a54 chore(repo): bring the Tauri app history into dstauri/`.
+- `dstauri/.git` is gone; `git rev-parse --show-toplevel` from `dstauri/` returns
+  the repo root.
+- Workflows moved to the repo root: `.github/workflows/ci.yml` (fmt/clippy/test +
+  typecheck/test/lint/build) and `.github/workflows/release.yml` (now sets
+  `working-directory: dstauri` and `projectPath: dstauri`).
+- `dstauri/AGENTS.md` is now a pointer to the root `AGENTS.md`, which is the only
+  source of truth.
+
+### Phase 0/1 additions in the same session
+
+- `watch_progress`: migration `0006` (adds `idx_watch_progress_updated`), queries
+  (`save/get/clear/all_watch_progress`), IPC commands, `lib/ipc/watch-progress.ts`,
+  and resume/save wiring in `app/watch/page.tsx` (throttled 5s writes, force write
+  on pause/seek/end, auto-complete at 90%).
+- CSP replaced `null` with an explicit policy (asset/ipc/loopback/media allowances).
+- Added `tauri-plugin-window-state` and `tauri-plugin-single-instance` (the latter
+  focuses the existing window on a second launch).
+- Frontend tests: vitest + Testing Library, 3 files / 20 tests
+  (`lib/utils.test.ts`, `lib/ipc/client.test.ts`, `lib/ipc/watch-progress.test.ts`).
+- `docs/decisions/player.md` records the accepted player engine decision.

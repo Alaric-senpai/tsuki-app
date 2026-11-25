@@ -1,9 +1,15 @@
-<!-- BEGIN:nextjs-agent-rules -->
+# AGENTS.md — moved
 
-# This is NOT the Next.js you know
+This file used to hold a second copy of the project rules. It drifted from the
+real one while the Tauri app lived in a nested git repository.
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+**The source of truth is [`../AGENTS.md`](../AGENTS.md)** at the repository root.
+Read that before touching anything here.
 
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+Quick orientation for this directory:
 
-<!-- END:nextjs-agent-rules -->
+- `dstauri/` is the Tauri v2 + Rust + Next.js app (part of the Donghua-stream repo).
+- The legacy PyQt6 app it ports lives at the repository root (`../app_config.py`, `../db.py`, …).
+- Rust code: `src-tauri/src/`. Frontend: `app/`, `components/`, `lib/`, `hooks/`
+  (there is no `src/` directory on the frontend side).
+- CI and release workflows: `../.github/workflows/`.
