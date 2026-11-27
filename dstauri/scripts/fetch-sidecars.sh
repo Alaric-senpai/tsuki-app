@@ -58,7 +58,39 @@ fetch() {
   else
     die "curl or wget is required"
   fi
+  # A proxy or a rate-limited mirror can answer 200 with an HTML error page.
+  # A real yt-dlp binary is never this small; catch it before it is bundled.
+  if [[ $(wc -c < "$dest") -lt 100000 ]]; then
+    die "$(basename "$dest") is too small to be a real binary; check $url"
+  fi
   chmod +x "$dest"
+}
+
+# Download an archive, verifying its format, and fall back to another mirror.
+# `curl -f` alone is not enough: some mirrors answer 200 with an HTML page.
+fetch_archive() {
+  local kind="$1" dest="$2"
+  shift 2
+  local url valid
+  for url in "$@"; do
+    say "downloading $(basename "$dest") from $url"
+    rm -f "$dest"
+    if ! curl -fL --retry 2 --connect-timeout 20 -o "$dest" "$url"; then
+      continue
+    fi
+    valid=0
+    if [[ "$kind" == xz ]] && have xz && xz -t "$dest" >/dev/null 2>&1; then
+      valid=1
+    elif [[ "$kind" == zip ]] && have unzip && unzip -tq "$dest" >/dev/null 2>&1; then
+      valid=1
+    fi
+    if [[ $valid -eq 1 ]]; then
+      return 0
+    fi
+    say "$(basename "$dest") from $url was not a valid $kind archive; trying the next mirror"
+  done
+  rm -f "$dest"
+  die "could not download a valid $kind archive for $triple"
 }
 
 ytdlp_url=""
@@ -109,10 +141,17 @@ elif [[ "$triple" == *-apple-darwin ]]; then
     die "install ffmpeg (brew install ffmpeg) or copy it to $ffmpeg_dest"
   fi
 else
-  # Linux: johnvansickle's static builds (GPL; see THIRD_PARTY.md).
-  arch="amd64"
-  [[ "$triple" == aarch64* ]] && arch="arm64"
-  fetch "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-$arch-static.tar.xz" "$tmp/ffmpeg.tar.xz"
+  # Linux: prefer BtbN's static builds, fall back to johnvansickle (GPL;
+  # see THIRD_PARTY.md). Both mirrors are validated before they are used:
+  # a captive proxy can answer an archive request with a small HTML page.
+  if [[ "$triple" == aarch64* ]]; then
+    primary="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linuxarm64-gpl.tar.xz"
+    fallback="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz"
+  else
+    primary="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz"
+    fallback="https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"
+  fi
+  fetch_archive xz "$tmp/ffmpeg.tar.xz" "$primary" "$fallback"
   tar -xJf "$tmp/ffmpeg.tar.xz" -C "$tmp"
   src="$(find "$tmp" -type f -name ffmpeg -path '*/ffmpeg-*' | head -n1)"
   [[ -n "$src" ]] || die "ffmpeg not found in the archive"
