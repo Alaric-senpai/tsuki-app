@@ -38,10 +38,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
-          conclusion=$(gh api "repos/${GITHUB_REPOSITORY}/check-runs?head_sha=${COMMIT_SHA}" \
-            --jq '[.check_runs[] | select(.name == "All checks") | .conclusion] | last // "missing"')
-          if [ "$conclusion" != "success" ]; then
-            echo "CI's 'All checks' gate is '$conclusion' for ${COMMIT_SHA}."
+          # The check-runs list endpoint is per commit, not a `head_sha` query.
+          # Accept any successful "All checks" run for this exact commit: a tag
+          # push creates a newer, still-queued run whose conclusion is null.
+          passed=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${COMMIT_SHA}/check-runs?per_page=100" \
+            --jq '[.check_runs[] | select(.name == "All checks" and .conclusion == "success")] | length')
+          if [ "$passed" = "0" ]; then
+            echo "CI's 'All checks' gate has not passed for ${COMMIT_SHA}."
             echo "Merge a PR into main (or re-run CI) before publishing a release."
             exit 1
           fi
