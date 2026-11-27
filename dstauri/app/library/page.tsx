@@ -1,67 +1,85 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { Suspense, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { PlusIcon, RefreshCwIcon } from "lucide-react"
 
-import { Pagination, type PageSizeOption } from "@/components/common/pagination"
+import { LoadingGrid } from "@/components/common/data-state"
+import { Pagination } from "@/components/common/pagination"
 import { PageHeader } from "@/components/common/page-header"
 import { StatusChip } from "@/components/common/status-chip"
+import {
+  ALL_SOURCES,
+  filterAndSortLibrary,
+  LIBRARY_FILTERS,
+  LIBRARY_PAGE_SIZES,
+  paginateLibrary,
+} from "@/components/features/library/library-view"
 import { LibraryToolbar } from "@/components/features/library/library-toolbar"
 import { SeriesEditSheet } from "@/components/features/library/series-edit-sheet"
 import { SeriesGrid } from "@/components/features/library/series-grid"
 import { Button } from "@/components/ui/button"
 import { useArchiveSync, useSeries } from "@/hooks/use-library"
+import { useLibraryView } from "@/hooks/use-library-view"
 import type { SeriesSummary } from "@/lib/ipc/library"
 
-const FILTERS = ["All", "Watching", "Completed", "Failed"] as const
-type Filter = (typeof FILTERS)[number]
-
-const PAGE_SIZES: readonly PageSizeOption[] = [
-  {value: "5", label: "5 per page"},
-  {value: "10", label: "10 per page"},
-  { value: "15", label: "15 per page" },
-  { value: "30", label: "30 per page" },
-  { value: "50", label: "50 per page" },
-  { value: "all", label: "All" },
-]
-
-function matchesFilter(series: SeriesSummary, filter: Filter): boolean {
-  if (filter === "All") return true
-  if (filter === "Failed") return series.failedEpisodes > 0
-  if (filter === "Completed") {
-    return series.totalEpisodes > 0 && series.downloadedEpisodes >= series.totalEpisodes
-  }
-  return series.downloadedEpisodes < series.totalEpisodes && series.failedEpisodes === 0
-}
-
-export default function LibraryPage() {
-  const [filter, setFilter] = useState<Filter>("All")
-  const [query, setQuery] = useState("")
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState("10")
+function LibraryView() {
+  const urlQuery = useSearchParams().get("q")
+  const {
+    view,
+    setFilter,
+    setSort,
+    setQuery,
+    setPage,
+    setPageSize,
+    setSource,
+  } = useLibraryView()
   const [editing, setEditing] = useState<SeriesSummary | null>(null)
   const [editOpen, setEditOpen] = useState(false)
   const library = useSeries()
   const archive = useArchiveSync()
 
-  const visible = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    return library.data.filter(
-      (series) =>
-        matchesFilter(series, filter) &&
-        (!needle ||
-          series.name.toLowerCase().includes(needle) ||
-          series.key.includes(needle)),
-    )
-  }, [filter, library.data, query])
+  // Top-bar searches navigate here with ?q=…; the URL wins over the persisted
+  // query so every submission filters the library immediately.
+  useEffect(() => {
+    if (!urlQuery) return
+    setQuery(urlQuery)
+    setPage(1)
+  }, [urlQuery, setQuery, setPage])
 
-  const limit = pageSize === "all" ? Math.max(visible.length, 1) : Number(pageSize)
-  const pageCount = Math.max(1, Math.ceil(visible.length / limit))
-  const currentPage = Math.min(page, pageCount)
-  const pageRows = useMemo(
-    () => visible.slice((currentPage - 1) * limit, currentPage * limit),
-    [currentPage, limit, visible],
+  const sources = useMemo(
+    () => [
+      ALL_SOURCES,
+      ...Array.from(
+        new Set(
+          library.data
+            .map((series) => series.sourceKey.trim())
+            .filter((key) => key.length > 0),
+        ),
+      ).sort((a, b) => a.localeCompare(b)),
+    ],
+    [library.data],
+  )
+
+  // A persisted source can disappear after a re-sync; fall back to "all"
+  // instead of leaving an empty, confusing Select value behind.
+  const activeSource = sources.includes(view.source) ? view.source : ALL_SOURCES
+
+  const visible = useMemo(
+    () =>
+      filterAndSortLibrary(library.data, {
+        filter: view.filter,
+        sort: view.sort,
+        query: view.query,
+        source: activeSource,
+      }),
+    [activeSource, library.data, view.filter, view.sort, view.query],
+  )
+
+  const { rows: pageRows, page: currentPage, pageCount } = useMemo(
+    () => paginateLibrary(visible, view.page, view.pageSize),
+    [visible, view.page, view.pageSize],
   )
 
   return (
@@ -90,17 +108,16 @@ export default function LibraryPage() {
 
       <div className="space-y-5 px-6 py-6">
         <LibraryToolbar
-          filters={FILTERS}
-          filter={filter}
-          query={query}
-          onFilterChange={(next) => {
-            setFilter(next as Filter)
-            setPage(1)
-          }}
-          onQueryChange={(next) => {
-            setQuery(next)
-            setPage(1)
-          }}
+          filters={LIBRARY_FILTERS}
+          filter={view.filter}
+          query={view.query}
+          onFilterChange={setFilter}
+          onQueryChange={setQuery}
+          sort={view.sort}
+          onSortChange={setSort}
+          sources={sources}
+          source={activeSource}
+          onSourceChange={setSource}
         />
 
         {archive.error ? (
@@ -122,13 +139,10 @@ export default function LibraryPage() {
           <Pagination
             page={currentPage}
             pageCount={pageCount}
-            pageSize={pageSize}
-            sizes={PAGE_SIZES}
+            pageSize={view.pageSize}
+            sizes={LIBRARY_PAGE_SIZES}
             onPageChange={setPage}
-            onPageSizeChange={(size) => {
-              setPageSize(size)
-              setPage(1)
-            }}
+            onPageSizeChange={setPageSize}
           />
         </div>
 
@@ -154,5 +168,13 @@ export default function LibraryPage() {
         onSaved={library.refresh}
       />
     </>
+  )
+}
+
+export default function LibraryPage() {
+  return (
+    <Suspense fallback={<LoadingGrid count={3} />}>
+      <LibraryView />
+    </Suspense>
   )
 }

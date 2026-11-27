@@ -31,6 +31,9 @@ export function SelectSettingRow({
   const visibleOptions = options.some((option) => option.value === value)
     ? options
     : [...options, { value, label: `${value} (custom)` }]
+  // Show the human-readable label in the closed trigger too: raw "1"/"0"
+  // values are not meaningful to the user.
+  const selectedLabel = visibleOptions.find((option) => option.value === value)?.label ?? value
 
   return (
     <div className="flex items-center justify-between gap-4 px-4 py-3">
@@ -48,7 +51,7 @@ export function SelectSettingRow({
         }}
       >
         <SelectTrigger size="sm" className="w-40" aria-label={label}>
-          <SelectValue />
+          <SelectValue>{selectedLabel}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           {visibleOptions.map((option) => (

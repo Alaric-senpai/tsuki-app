@@ -2,13 +2,24 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, "1.1.2"]
   pull_request:
+    branches: [main, master, "1.1.2"]
+  workflow_dispatch:
+
+# Only the newest run per branch/PR matters; superseded runs waste runners.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   rust:
     name: Rust gates
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: dstauri/src-tauri
@@ -44,6 +55,7 @@ jobs:
   frontend:
     name: Frontend gates
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: dstauri
@@ -66,3 +78,22 @@ jobs:
         run: bun run lint
       - name: build (static export)
         run: bun run build
+
+  # A single required check for branch protection: require "All checks" on
+  # main (and 1.1.2) instead of maintaining a list of per-job names.
+  all-checks:
+    name: All checks
+    if: always()
+    needs: [rust, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all gates passed
+        env:
+          RUST_RESULT: ${{ needs.rust.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+        run: |
+          if [ "$RUST_RESULT" != "success" ] || [ "$FRONTEND_RESULT" != "success" ]; then
+            echo "Rust gates: $RUST_RESULT; frontend gates: $FRONTEND_RESULT"
+            exit 1
+          fi
+          echo "All gates passed."

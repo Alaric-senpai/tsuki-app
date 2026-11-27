@@ -15,7 +15,7 @@ use crate::error::AppError;
 use crate::sources::browse::{
     CatalogFilters, CatalogPage, Genre, SourceCard, SourceEpisode, SourceSeries,
 };
-use crate::sources::donghuastream::browse::CatalogQuery;
+use crate::sources::donghuastream::browse::{CatalogQuery, has_next_page};
 use crate::sources::{cache, fetch_text};
 
 const NAMESPACE: &str = "animekhor";
@@ -92,37 +92,100 @@ fn slug_from_url(url: &str) -> String {
         .unwrap_or_default()
 }
 
-/// Read poster cards from a catalog/search page.
+/// Canonical series URL from a detail page's `<head>`. WordPress resolves a
+/// numeric post id (`/?p=51197`) to this slug, but the request URL itself is
+/// not canonical, so the parsed series must use the link from the HTML.
+fn canonical_url(html: &str) -> String {
+    let link = re(r#"(?is)<link\s+rel="canonical"\s+href="([^"]+)""#);
+    let reverse = re(r#"(?is)<link\s+href="([^"]+)"\s+rel="canonical""#);
+    link.captures(html)
+        .or_else(|| reverse.captures(html))
+        .map(|caps| decode_entities(&caps[1]).trim().to_string())
+        .unwrap_or_default()
+}
+
+fn first_text(pattern: &str, html: &str) -> String {
+    re(pattern)
+        .captures(html)
+        .map(|caps| text_of(&caps[1]))
+        .unwrap_or_default()
+}
+
+/// Build the detail URL for an id. The site's article cards expose a numeric
+/// WordPress post id in `rel`; `/anime/{numeric}/` 404s, but `/?p={numeric}`
+/// redirects to the canonical slug page. Accept slugs and full URLs as well.
+pub fn series_url(raw: &str) -> Option<String> {
+    let id = raw.trim();
+    if id.is_empty() {
+        return None;
+    }
+    if id.chars().all(|ch| ch.is_ascii_digit()) {
+        return Some(format!("{BASE}/?p={id}"));
+    }
+    let slug = slug_from_url(id);
+    if slug.is_empty() {
+        // A caller may hand back the numeric permalink itself.
+        if let Some(post) = re(r#"[?&]p=(\d+)"#).captures(id) {
+            return Some(format!("{BASE}/?p={}", &post[1]));
+        }
+    }
+    let slug = if slug.is_empty() {
+        id.trim_matches('/').to_string()
+    } else {
+        slug
+    };
+    if slug.is_empty()
+        || slug.contains('/')
+        || slug.contains(' ')
+        || slug.contains('?')
+        || slug.contains('#')
+    {
+        return None;
+    }
+    Some(format!("{BASE}/anime/{slug}/"))
+}
+
+/// Read the poster cards in the main `<article class="bs">` grid.
+///
+/// The old parser read `<a class="series" … rel="123">` links; on the live
+/// site those only exist in the "Popular Series" sidebar widget and are the
+/// same on every page, so genre and page changes appeared to do nothing and
+/// numeric ids produced 404 detail URLs.
 pub fn parse_cards(html: &str) -> Vec<SourceCard> {
-    let pattern = re(r#"(?is)<a\s+class="series"\s+href="([^"]+)"\s+rel="(\d+)"[^>]*>(.*?)</a>"#);
-    let image_pattern = re(r#"(?is)<img\b[^>]*>"#);
+    let article = re(r#"(?is)<article\s+class="bs".*?</article>"#);
+    let link = re(r#"(?is)<a\s+href="([^"]+)"[^>]*itemprop="url"[^>]*>"#);
+    let image = re(r#"(?is)<img\b[^>]*>"#);
     let mut cards = Vec::new();
-    for caps in pattern.captures_iter(html) {
-        let url = decode_entities(&caps[1]).trim().to_string();
-        let id = caps[2].to_string();
-        let slug = slug_from_url(&url);
+    let mut seen = std::collections::HashSet::new();
+
+    for found in article.captures_iter(html) {
+        let card_html = &found[0];
+        let Some(link_tag) = link.captures(card_html) else {
+            continue;
+        };
+        let href = decode_entities(&link_tag[1]).trim().to_string();
+        let slug = slug_from_url(&href);
         if slug.is_empty() {
+            // Home-page cards link to episode articles, not to series pages.
             continue;
         }
-        let inner = &caps[3];
-        let primary = attr_of(inner, "title");
-        let alternate = if primary.is_empty() {
-            attr_of(inner, "alt")
+        let url = format!("{BASE}/anime/{slug}/");
+        if !seen.insert(url.clone()) {
+            continue;
+        }
+        let title = attr_of(&link_tag[0], "title");
+        let title = if title.is_empty() {
+            first_text(r#"(?is)<div class="tt">(.*?)<h2"#, card_html)
         } else {
-            primary
-        };
-        let title = if alternate.is_empty() {
-            text_of(inner)
-        } else {
-            alternate
+            title
         };
         if title.is_empty() {
             continue;
         }
-        let thumbnail = image_pattern
-            .captures(inner)
-            .map(|image| {
-                let tag = &image[0];
+        let thumbnail = image
+            .captures(card_html)
+            .map(|found| {
+                let tag = &found[0];
                 let lazy = attr_of(tag, "data-src");
                 if lazy.is_empty() {
                     attr_of(tag, "src")
@@ -131,14 +194,15 @@ pub fn parse_cards(html: &str) -> Vec<SourceCard> {
                 }
             })
             .unwrap_or_default();
+        let id = attr_of(&link_tag[0], "rel");
         cards.push(SourceCard {
-            id,
+            id: if id.is_empty() { slug } else { id },
             title,
             url,
             thumbnail,
-            status: String::new(),
-            kind: String::new(),
-            episode_text: String::new(),
+            status: first_text(r#"(?is)<div class="status[^"]*">(.*?)</div>"#, card_html),
+            kind: first_text(r#"(?is)<div class="typez[^"]*">(.*?)</div>"#, card_html),
+            episode_text: first_text(r#"(?is)<span class="epx">(.*?)</span>"#, card_html),
             source: SOURCE_KEY.to_string(),
         });
     }
@@ -244,12 +308,29 @@ pub fn parse_series(html: &str, page_url: &str) -> Option<SourceSeries> {
     .unwrap_or_default();
     let episodes = parse_episodes(html);
     let get = |key: &str| fields.get(key).cloned().unwrap_or_default();
+    // A numeric-id request (`/?p=123`) is answered by a 301 to the slug page;
+    // use the canonical link so the library stores a stable, shareable URL.
+    let canonical = canonical_url(html);
+    let url = if canonical.contains("/anime/") {
+        canonical
+    } else {
+        page_url.to_string()
+    };
+    let slug = slug_from_url(&url);
+    let id = if slug.is_empty() {
+        re(r#"[?&]p=(\d+)"#)
+            .captures(page_url)
+            .map(|caps| caps[1].to_string())
+            .unwrap_or_default()
+    } else {
+        slug
+    };
 
     Some(SourceSeries {
         source: SOURCE_KEY.to_string(),
-        id: slug_from_url(page_url),
+        id,
         title,
-        url: page_url.to_string(),
+        url,
         thumbnail,
         description,
         status: get("status"),
@@ -266,16 +347,18 @@ pub fn parse_series(html: &str, page_url: &str) -> Option<SourceSeries> {
     })
 }
 
+/// Real URL patterns, verified against the live site:
+/// * series archive paginates with `?page=N` (`/anime/page/N/` serves page 1);
+/// * genre archives paginate with `/genres/{slug}/page/N/`;
+/// * search uses `/page/N/?s=…`.
 pub fn catalog_url(query: &CatalogQuery) -> String {
     let page = query.page.max(1);
-    let prefix = if page > 1 {
-        format!("{BASE}/page/{page}/")
-    } else {
-        format!("{BASE}/")
-    };
     let search = query.search.trim();
     if !search.is_empty() {
-        return format!("{prefix}?s={}", enc(search));
+        if page > 1 {
+            return format!("{BASE}/page/{page}/?s={}", enc(search));
+        }
+        return format!("{BASE}/?s={}", enc(search));
     }
     let genre = query.genre.trim().trim_matches('/');
     if !genre.is_empty()
@@ -288,11 +371,11 @@ pub fn catalog_url(query: &CatalogQuery) -> String {
         }
         return format!("{BASE}/genres/{genre}/");
     }
-    prefix.trim_end_matches('/').to_string() + "/"
-}
-
-fn has_next_page(html: &str) -> bool {
-    re(r#"(?is)<a[^>]+(?:rel=["']next["']|class=["'][^"']*\bnext page-numbers\b)"#).is_match(html)
+    if page > 1 {
+        format!("{BASE}/anime/?page={page}")
+    } else {
+        format!("{BASE}/anime/")
+    }
 }
 
 /// Genres are harvested from the site's `/genres/` links; it exposes no
@@ -347,7 +430,10 @@ pub async fn catalog(
     } else {
         "search"
     };
-    let key = format!("{mode}:{url}");
+    let page_number = query.page.max(1);
+    // The old keys cached a repeated page under the URL alone; include the
+    // page number so stale responses can never be served after this fix.
+    let key = format!("{mode}:{page_number}:{url}");
     if !refresh && let Some(hit) = cache::read::<CatalogPage>(NAMESPACE, &key, cache_minutes) {
         let mut page = hit.value;
         page.cached = true;
@@ -357,15 +443,15 @@ pub async fn catalog(
 
     let html = fetch_text(&url).await?;
     let mut cards = parse_cards(&html);
-    let page_number = query.page.max(1);
     if cards.is_empty() && mode == "catalog" && page_number == 1 {
         return Err(AppError::source_with(
             "animekhor.org's catalog did not contain any series. The site layout may have changed.",
             url,
         ));
     }
-    let raw_count = cards.len();
-    let has_more = has_next_page(&html) || (query.limit > 0 && raw_count >= query.limit);
+    // Next must come from the site's pagination markup, not a full page: the
+    // sidebar cards always filled the grid even when nothing changed.
+    let has_more = !cards.is_empty() && has_next_page(&html);
     if query.limit > 0 {
         cards.truncate(query.limit);
     }
@@ -386,18 +472,9 @@ pub async fn catalog(
 }
 
 pub async fn series(id: &str, cache_minutes: u32, refresh: bool) -> Result<SourceSeries, AppError> {
-    let slug = id
-        .trim()
-        .trim_start_matches(format!("{BASE}/anime/").as_str())
-        .trim_matches('/')
-        .to_string();
-    if slug.is_empty() {
-        return Err(AppError::source_with(
-            "That is not an animekhor.org series id.",
-            id.to_string(),
-        ));
-    }
-    let url = format!("{BASE}/anime/{slug}/");
+    let url = series_url(id).ok_or_else(|| {
+        AppError::source_with("That is not an animekhor.org series id.", id.to_string())
+    })?;
     let key = format!("series:{url}");
     if !refresh && let Some(hit) = cache::read::<SourceSeries>(NAMESPACE, &key, cache_minutes) {
         return Ok(hit.value);
@@ -419,18 +496,129 @@ mod tests {
 
     const HOME: &str = include_str!("fixtures/home.html");
     const DETAIL: &str = include_str!("fixtures/detail.html");
+    const PAGE1: &str = include_str!("../../../tests/fixtures/animekhor_anime_page1.html");
+    const PAGE2: &str = include_str!("../../../tests/fixtures/animekhor_anime_page2.html");
+    const GENRE1: &str = include_str!("../../../tests/fixtures/animekhor_genre_action.html");
+    const GENRE2: &str = include_str!("../../../tests/fixtures/animekhor_genre_action_page2.html");
 
     #[test]
-    fn cards_are_read_from_the_live_catalog_fixture() {
-        let cards = parse_cards(HOME);
-        let card = cards
-            .iter()
-            .find(|item| item.url.contains("renegade-immortal"))
-            .expect("catalog card");
-        assert_eq!(card.title, "Renegade Immortal");
-        assert_eq!(card.id, "28305");
-        assert!(card.thumbnail.contains("Renegade-Immortal-Poster-l.jpg"));
+    fn cards_are_read_from_the_live_catalog_grid() {
+        let cards = parse_cards(PAGE1);
+        assert_eq!(cards.len(), 5);
+        let card = &cards[0];
+        assert_eq!(card.id, "4221");
+        assert_eq!(
+            card.title,
+            "100,000 Levels of Body Refining : All the dogs I raise are the Emperor"
+        );
+        assert_eq!(
+            card.url,
+            "https://animekhor.org/anime/100000-levels-of-body-refining-all-the-dogs-i-raise-are-the-emperor/"
+        );
+        assert!(card.thumbnail.starts_with("https://i1.wp.com/"));
+        assert_eq!(card.kind, "Comic");
+        assert_eq!(card.episode_text, "Ongoing");
         assert_eq!(card.source, SOURCE_KEY);
+    }
+
+    #[test]
+    fn sidebar_widget_links_are_not_mistaken_for_catalog_cards() {
+        // The old parser only saw these identical "Popular Series" links,
+        // which is why genre and page changes appeared to do nothing.
+        assert!(parse_cards(HOME).is_empty());
+    }
+
+    #[test]
+    fn catalog_pages_and_genres_return_distinct_cards() {
+        let first = parse_cards(PAGE1);
+        let second = parse_cards(PAGE2);
+        assert_eq!(first[0].id, "4221");
+        assert_eq!(second[0].id, "73266");
+        assert!(
+            first
+                .iter()
+                .all(|card| !second.iter().any(|other| other.id == card.id)),
+            "page 2 repeated page 1 cards"
+        );
+        assert!(has_next_page(PAGE1));
+        assert!(has_next_page(PAGE2));
+
+        let genre1 = parse_cards(GENRE1);
+        let genre2 = parse_cards(GENRE2);
+        assert_eq!(genre1[0].id, "4221");
+        assert_eq!(genre2[0].id, "31546");
+        assert!(
+            genre1
+                .iter()
+                .all(|card| !genre2.iter().any(|other| other.id == card.id)),
+            "genre page 2 repeated page 1 cards"
+        );
+        assert!(has_next_page(GENRE1));
+        assert!(has_next_page(GENRE2));
+        assert!(!has_next_page(r#"<div class="pagination"></div>"#));
+    }
+
+    #[test]
+    fn catalog_urls_use_the_real_pagination_patterns() {
+        assert_eq!(
+            catalog_url(&CatalogQuery::default()),
+            "https://animekhor.org/anime/"
+        );
+        let paged = CatalogQuery {
+            page: 2,
+            ..CatalogQuery::default()
+        };
+        assert_eq!(catalog_url(&paged), "https://animekhor.org/anime/?page=2");
+        let genre = CatalogQuery {
+            genre: "action".to_string(),
+            ..CatalogQuery::default()
+        };
+        assert_eq!(catalog_url(&genre), "https://animekhor.org/genres/action/");
+        let genre_paged = CatalogQuery {
+            genre: "action".to_string(),
+            page: 2,
+            ..CatalogQuery::default()
+        };
+        assert_eq!(
+            catalog_url(&genre_paged),
+            "https://animekhor.org/genres/action/page/2/"
+        );
+        let search_paged = CatalogQuery {
+            search: "immortal".to_string(),
+            page: 2,
+            ..CatalogQuery::default()
+        };
+        assert_eq!(
+            catalog_url(&search_paged),
+            "https://animekhor.org/page/2/?s=immortal"
+        );
+        let injected = CatalogQuery {
+            genre: "../etc".to_string(),
+            ..CatalogQuery::default()
+        };
+        assert_eq!(catalog_url(&injected), "https://animekhor.org/anime/");
+    }
+
+    #[test]
+    fn numeric_ids_build_a_wordpress_permalink() {
+        assert_eq!(
+            series_url("51197"),
+            Some("https://animekhor.org/?p=51197".to_string())
+        );
+        assert_eq!(
+            series_url("https://animekhor.org/anime/renegade-immortal/"),
+            Some("https://animekhor.org/anime/renegade-immortal/".to_string())
+        );
+        assert_eq!(series_url("../etc"), None);
+        assert_eq!(series_url(""), None);
+    }
+
+    #[test]
+    fn numeric_detail_pages_use_the_canonical_slug() {
+        let series = parse_series(DETAIL, "https://animekhor.org/?p=28305").expect("series");
+        assert_eq!(series.id, "renegade-immortal");
+        assert_eq!(series.url, "https://animekhor.org/anime/renegade-immortal/");
+        assert_eq!(series.title, "Renegade Immortal");
     }
 
     #[test]

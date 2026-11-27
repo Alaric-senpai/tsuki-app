@@ -29,14 +29,27 @@ function MetaItem({
   )
 }
 
+export interface ItemHeroLabels {
+  released?: string
+  studio?: string
+  episodes?: string
+  duration?: string
+}
+
 /** Poster + metadata for an online item. Purely presentational. */
-export function ItemHero({ series }: { series: SourceSeries }) {
+export function ItemHero({
+  series,
+  labels,
+}: {
+  series: SourceSeries
+  labels?: ItemHeroLabels
+}) {
   const ongoing = /ongoing|airing|currently/i.test(series.status)
   const meta = [
-    { icon: CalendarIcon, label: "Released", value: series.released },
-    { icon: ClapperboardIcon, label: "Studio", value: series.studio },
-    { icon: LayersIcon, label: "Episodes", value: String(series.episodeCount) },
-    { icon: ClockIcon, label: "Duration", value: series.duration },
+    { icon: CalendarIcon, label: labels?.released ?? "Released", value: series.released },
+    { icon: ClapperboardIcon, label: labels?.studio ?? "Studio", value: series.studio },
+    { icon: LayersIcon, label: labels?.episodes ?? "Episodes", value: String(series.episodeCount) },
+    { icon: ClockIcon, label: labels?.duration ?? "Duration", value: series.duration },
   ].filter((item) => item.value.trim() && item.value !== "0")
 
   return (

@@ -2,12 +2,53 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      skip_ci_check:
+        description: "Allow publishing even if CI has not passed (emergency only)"
+        type: boolean
+        default: false
+      tag:
+        description: "Release tag to publish (e.g. v1.1.2)"
+        type: string
+        required: true
+        default: "v1.1.2"
   push:
     tags:
       - "v*"
 
+# main is production: a tag is only published after the CI workflow (including
+# the aggregate "All checks" gate) has passed on that exact commit.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
 jobs:
+  verify-ci:
+    name: Verify CI passed for this commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require a successful CI run
+        if: github.event_name != 'workflow_dispatch' || inputs.skip_ci_check == false
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          conclusion=$(gh api "repos/${GITHUB_REPOSITORY}/check-runs?head_sha=${COMMIT_SHA}" \
+            --jq '[.check_runs[] | select(.name == "All checks") | .conclusion] | last // "missing"')
+          if [ "$conclusion" != "success" ]; then
+            echo "CI's 'All checks' gate is '$conclusion' for ${COMMIT_SHA}."
+            echo "Merge a PR into main (or re-run CI) before publishing a release."
+            exit 1
+          fi
+          echo "CI passed for ${COMMIT_SHA}."
+
   publish-tauri:
+    needs: verify-ci
     permissions:
       contents: write
     defaults:
@@ -59,6 +100,15 @@ jobs:
       - name: Install frontend dependencies
         run: bun install
 
+      - name: Read release notes
+        id: notes
+        run: |
+          {
+            echo "body<<CHANGELOG_EOF"
+            cat "$GITHUB_WORKSPACE/CHANGELOG.md"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build and publish
         id: tauri
         uses: tauri-apps/tauri-action@action-v1.0.0
@@ -68,14 +118,16 @@ jobs:
           projectPath: dstauri
           # Follow the pushed tag so hotfix tags (e.g. v1.1.1-hotfix.1)
           # publish their own release without retagging the original one.
-          tagName: ${{ github.ref_name }}
-          releaseName: ${{ github.ref_name }}
+          tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          releaseName: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           releaseBody: |
+            ${{ steps.notes.outputs.body }}
+
             See the assets below to download this version.
             The Windows portable executable requires the Microsoft Edge WebView2 Runtime.
           releaseDraft: true
           prerelease: false
-          generateReleaseNotes: true
+          generateReleaseNotes: false
           retryAttempts: 2
           args: ${{ matrix.args }}
           assetNamePattern: ${{ matrix.assetPattern }}

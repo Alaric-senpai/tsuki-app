@@ -5,6 +5,55 @@ Update this at the end of every working session (see `AGENTS.md` §13).
 
 ---
 
+## Current session — 1.1.2 release checklist (in progress)
+
+Branch `1.1.2`. `main` is production-only and is now protected (PR + 1 approval +
+`All checks`); releases are gated on that check for the exact tag commit.
+
+### Done
+- Version bumped to **1.1.2** across Cargo/manifest/config/UI surfaces.
+- DonghuaStream: real paginated catalogue URLs and fixture-backed tests so Next
+  shows different series instead of repeating page 1.
+- animekhor: real genre/pagination URLs, numeric-id → series resolution for
+  detail pages, and fixture-backed tests; `has_more` now follows the site.
+- `/item` and `/show` keep the same UI but dispatch to source-specific detail
+  components; navigation prefers the canonical card URL.
+- Library: name/latest-added/status/tag filters and sorting, persisted in
+  `localStorage` (`tsuki.library.*`) with SSR-safe hydration. Top-bar search now
+  navigates to `/library?q=…` and the library restores the query on load.
+- Window controls in the top bar: minimize to tray, maximize/restore, close.
+  Tray is installed in Rust and offers Open Tsuki / Download centre / Quit.
+- Settings display readable labels (On/Off) instead of raw 0/1 in closed
+  selects, including the update toggles.
+- Automatic update checks are on by default; when a release is found a dialog
+  shows `CHANGELOG.md` release notes with Start update / Skip for now and an
+  opt-in/opt-out checkbox. A Settings card exposes both toggles.
+- Network tracking: cached connectivity probe, offline guard before startup
+  resume and every source fetch, 30 s watcher, offline→online resume, and a
+  dismissible banner/toast.
+- Root `CHANGELOG.md` added and embedded in GitHub release notes; CI gained an
+  `All checks` aggregate and release gained a CI verification gate.
+
+### Verification
+- `bun run lint`, `bun run typecheck`, `bun run test` (47 tests), `bun run build`
+  (14/14 static pages): passed after the latest edits.
+- Rust `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings`:
+  passed locally. The full libtest binary links extremely slowly with static
+  GTK/WebKit rlibs on this machine (no test list was printed within 15 minutes),
+  so Rust unit tests are deliberately left to CI, which runs them on every PR.
+
+### Known issues / next
+- Streamplay is abandoned. Replacement-source research is complete in
+  `reports/source-fallback.md` (YouTube/alternate-player fallbacks) and is
+  **not** in 1.1.2.
+- Rust test binary links very slowly with GTK/WebKit rlibs; CI should use a
+  bounded `cargo test --lib` with reduced debug info rather than the unbounded
+  all-targets chain.
+- Release: the work is committed on `1.1.2`; the PR to `main` is opened/approved
+  and, after `All checks` passes, merged; tag `v1.1.2` then triggers the prod builds.
+
+---
+
 ## Current session — packaging hotfix (v1.1.1-hotfix)
 
 - Fedora RPM install failed: bundled `externalBin` files landed at `/usr/bin/yt-dlp` and

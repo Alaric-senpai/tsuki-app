@@ -7,6 +7,7 @@ mod error;
 mod events;
 mod media_ids;
 mod migrate;
+mod network;
 mod sources;
 mod state;
 mod youtube;
@@ -212,6 +213,13 @@ pub fn run() {
                 .is_some_and(|value| value == "1");
             downloads.set_background_notifications(background_downloads);
 
+            // Update checks are on by default. The changelog dialog can turn
+            // checks and background downloads off via set_app_update_settings.
+            let auto_check_updates =
+                app_updater::setting_enabled(&current, "auto_check_app_updates", true);
+            let auto_download_updates =
+                app_updater::setting_enabled(&current, "auto_download_app_updates", true);
+
             app.manage(AppState::new(
                 store,
                 current,
@@ -221,16 +229,44 @@ pub fn run() {
             ));
 
             // The queue lives in memory, so reinstate anything the catalog
-            // still marks as queued from the previous session.
+            // still marks as queued from the previous session — but only once
+            // we know the machine is online. The probe runs on a task, so a
+            // slow or missing network never holds up startup.
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                let Some(state) = handle.try_state::<AppState>() else {
-                    return;
-                };
-                if let Err(error) = commands::downloads::resume_queued(&state).await {
-                    log::warn!("could not resume the download queue: {}", error.message());
+                let online = network::is_online().await;
+                events::network_status(&handle, online);
+                if online {
+                    events::network_online(&handle);
+                    if let Some(state) = handle.try_state::<AppState>()
+                        && let Err(error) = commands::downloads::resume_queued(&state).await
+                    {
+                        log::warn!("could not resume the download queue: {}", error.message());
+                    }
+                } else {
+                    log::warn!(
+                        "offline at startup: queued downloads will resume when the connection returns"
+                    );
+                    events::network_offline(&handle);
                 }
+                network::spawn_watcher(handle);
             });
+
+            if auto_check_updates {
+                let update_handle = app.handle().clone();
+                let update_data_dir = data_dir.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(error) = app_updater::startup_check(
+                        update_handle,
+                        update_data_dir,
+                        auto_download_updates,
+                    )
+                    .await
+                    {
+                        log::warn!("app update check failed: {}", error.message());
+                    }
+                });
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -241,8 +277,11 @@ pub fn run() {
             commands::config::set_explore_config,
             commands::config::set_youtube_config,
             commands::downloads::set_background_downloads,
+            network::network_status,
             commands::app_updater::check_app_update,
             commands::app_updater::install_app_update,
+            commands::app_updater::set_app_update_settings,
+            commands::app_updater::start_app_update,
             commands::player::resolve_playable,
             commands::config::open_in_external_player,
             commands::library::list_series,
