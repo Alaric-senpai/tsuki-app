@@ -1,6 +1,8 @@
 import type { Metadata } from "next"
 import localFont from "next/font/local"
 
+import { NetworkBanner } from "@/components/common/network-banner"
+import { AppUpdateDialog } from "@/components/features/settings/app-update-dialog"
 import { ExternalLinkGuard } from "@/components/external-link-guard"
 import { MiniPlayer } from "@/components/player/mini-player"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -68,6 +70,8 @@ export default function RootLayout({
               {children}
             </div>
             <MiniPlayer />
+            <NetworkBanner />
+            <AppUpdateDialog />
             <Toaster position="bottom-right" richColors closeButton />
           </TooltipProvider>
           </AppShell>

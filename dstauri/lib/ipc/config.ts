@@ -83,6 +83,8 @@ export const DEFAULT_CONFIG: AppConfig = {
     rate_limit_mb: "0",
     per_series_subfolder: "1",
     concurrent_downloads: "3",
+    auto_check_app_updates: "1",
+    auto_download_app_updates: "1",
   },
   explore: {
     result_limit: 18,

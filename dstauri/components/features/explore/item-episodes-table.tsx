@@ -22,6 +22,12 @@ const streamHref = (episode: SourceEpisode, source: string, seriesId: string) =>
   return `/stream?${params.toString()}`
 }
 
+export type EpisodeHrefBuilder = (
+  episode: SourceEpisode,
+  source: string,
+  seriesId: string,
+) => string
+
 /**
  * Episode list for an online item. The user ticks only the episodes they want
  * and the toolbar adds that subset to a library entry (existing or new).
@@ -33,12 +39,14 @@ export function ItemEpisodesTable({
   seriesId,
   loading,
   onAddSelected,
+  buildStreamHref = streamHref,
 }: {
   episodes: SourceEpisode[]
   source: string
   seriesId: string
   loading?: boolean
   onAddSelected: (urls: string[]) => void
+  buildStreamHref?: EpisodeHrefBuilder
 }) {
   const columns = useMemo(
     () =>
@@ -65,14 +73,14 @@ export function ItemEpisodesTable({
           id: "stream",
           header: "Stream",
           cell: (info) => (
-            <Button variant="outline" size="xs" nativeButton={false} render={<Link href={streamHref(info.row.original, source, seriesId)} />}>
+            <Button variant="outline" size="xs" nativeButton={false} render={<Link href={buildStreamHref(info.row.original, source, seriesId)} />}>
               <PlayIcon />
               Stream
             </Button>
           ),
         }),
       ]) as unknown as ColumnDef<TableFeatures, SourceEpisode, unknown>[],
-    [source, seriesId],
+    [buildStreamHref, seriesId, source],
   )
 
   return (

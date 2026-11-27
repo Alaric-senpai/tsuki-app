@@ -8,6 +8,8 @@ import { PosterCard } from "@/components/common/poster-card"
 import type { AppIpcError } from "@/lib/ipc/client"
 import type { SourceCard } from "@/lib/ipc/explore"
 
+import { detailIdForCard } from "./item-detail-navigation"
+
 export function PosterGrid({
   cards,
   loading,
@@ -53,7 +55,14 @@ export function PosterGrid({
           key={card.url}
           type="button"
           className="block w-full cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg"
-          onClick={() => onSelect?.(card)}
+          onClick={() =>
+            onSelect?.({
+              ...card,
+              // AnimeKhor cards carry a numeric `rel` id; detail pages need the
+              // canonical series URL instead. Other sources keep their id.
+              id: detailIdForCard(card),
+            })
+          }
         >
           <PosterCard
             title={card.title}

@@ -122,6 +122,9 @@ pub(crate) fn client() -> Result<&'static reqwest::Client, AppError> {
 
 /// Fetch a page as text with the shared client.
 pub async fn fetch_text(url: &str) -> Result<String, AppError> {
+    // A cached connectivity check keeps offline Explore searches from failing
+    // with a confusing source-parser error. The probe is short and shared.
+    crate::network::ensure_online().await?;
     let response = client()?
         .get(url)
         .header(reqwest::header::ACCEPT, "text/html,application/xhtml+xml")

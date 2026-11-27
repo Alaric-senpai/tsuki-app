@@ -5,15 +5,20 @@
 //! default handler. No signing keys or private endpoints are needed; the user
 //! stays in control of the actual installation prompt.
 
-use serde::Serialize;
+use std::path::Path;
+
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Emitter};
 use ts_rs::TS;
 
+use crate::config::Config;
 use crate::error::AppError;
+use crate::events;
 
 const API: &str = "https://api.github.com/repos/Alaric-senpai/tsuki-app/releases/latest";
 
-#[derive(Debug, Clone, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", default)]
 #[ts(export, export_to = "../../lib/ipc/bindings/")]
 pub struct AppRelease {
     pub version: String,
@@ -23,6 +28,10 @@ pub struct AppRelease {
     /// serde_json sends JS numbers; ts-rs would otherwise emit `bigint`.
     #[ts(as = "f64")]
     pub size: u64,
+    /// Set when the startup check already downloaded the installer in the
+    /// background; the dialog then only has to open it.
+    #[serde(default)]
+    pub downloaded_path: Option<String>,
 }
 
 fn normalize_version(raw: &str) -> String {
@@ -150,18 +159,13 @@ pub async fn check_for_update() -> Result<Option<AppRelease>, AppError> {
         asset_name,
         url,
         size,
+        downloaded_path: None,
     }))
 }
 
-/// Download the installer into `<app_data>/updates` and hand it to the OS.
-/// Returns the local path so the UI can show where it was saved.
-pub async fn download_and_open(
-    data_dir: &std::path::Path,
-    app: &tauri::AppHandle,
-    release: &AppRelease,
-) -> Result<String, AppError> {
-    use tauri_plugin_opener::OpenerExt;
-
+/// Download the installer into `<app_data>/updates`. Returns the local path so
+/// the UI can show where it was saved and open it later.
+pub async fn download(data_dir: &Path, release: &AppRelease) -> Result<String, AppError> {
     let client = reqwest::Client::builder()
         .user_agent(format!("Tsuki/{}/app-updater", env!("CARGO_PKG_VERSION")))
         .build()
@@ -187,11 +191,64 @@ pub async fn download_and_open(
     let path = folder.join(&release.asset_name);
     std::fs::write(&path, &bytes)
         .map_err(|error| AppError::io_with("Could not save the installer.", error.to_string()))?;
-    let display = path.to_string_lossy().to_string();
+    Ok(path.to_string_lossy().to_string())
+}
+
+/// Hand a previously downloaded installer to the OS. Only paths inside the
+/// app's own `updates` folder are accepted, so a webview-supplied path can
+/// never open an unrelated file.
+pub fn open(data_dir: &Path, app: &AppHandle, path: &str) -> Result<(), AppError> {
+    use tauri_plugin_opener::OpenerExt;
+
+    let candidate = Path::new(path);
+    if !candidate.is_file() || !candidate.starts_with(data_dir.join("updates")) {
+        return Err(AppError::config(
+            "That installer is not in Tsuki's updates folder.",
+        ));
+    }
     app.opener()
-        .open_path(display.clone(), None::<&str>)
-        .map_err(|error| AppError::io_with("Could not open the installer.", error.to_string()))?;
-    Ok(display)
+        .open_path(path.to_string(), None::<&str>)
+        .map_err(|error| AppError::io_with("Could not open the installer.", error.to_string()))
+}
+
+/// Download the installer and hand it to the OS in one step (Settings card).
+pub async fn download_and_open(
+    data_dir: &Path,
+    app: &AppHandle,
+    release: &AppRelease,
+) -> Result<String, AppError> {
+    let path = download(data_dir, release).await?;
+    open(data_dir, app, &path)?;
+    Ok(path)
+}
+
+/// True when the named on/off setting is enabled (defaults to `fallback`).
+pub fn setting_enabled(config: &Config, key: &str, fallback: bool) -> bool {
+    match config.settings.get(key).map(String::as_str) {
+        Some("1") | Some("true") => true,
+        Some("0") | Some("false") => false,
+        _ => fallback,
+    }
+}
+
+/// Startup check. Emits `update://available` so the UI can show the changelog
+/// dialog; when automatic downloads are enabled the installer is fetched in
+/// the background first and the dialog only has to open it.
+pub async fn startup_check(
+    app: AppHandle,
+    data_dir: std::path::PathBuf,
+    auto_download: bool,
+) -> Result<(), AppError> {
+    let Some(mut release) = check_for_update().await? else {
+        return Ok(());
+    };
+    if auto_download && let Ok(path) = download(&data_dir, &release).await {
+        release.downloaded_path = Some(path);
+    }
+    if let Err(error) = app.emit(events::UPDATE_AVAILABLE, &release) {
+        log::warn!("could not emit {}: {error}", events::UPDATE_AVAILABLE);
+    }
+    Ok(())
 }
 
 #[cfg(test)]

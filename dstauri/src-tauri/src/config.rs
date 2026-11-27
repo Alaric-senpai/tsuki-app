@@ -32,6 +32,10 @@ pub const DEFAULT_SETTINGS: &[(&str, &str)] = &[
     ("per_series_subfolder", "1"),
     ("concurrent_downloads", "3"),
     ("background_downloads", "0"),
+    // Application updater: checks run on startup by default; the checkbox in
+    // the update dialog can opt out of both checks and background downloads.
+    ("auto_check_app_updates", "1"),
+    ("auto_download_app_updates", "1"),
 ];
 
 pub(crate) const SAFE_SEARCH_VALUES: &[&str] = &["none", "moderate", "strict"];

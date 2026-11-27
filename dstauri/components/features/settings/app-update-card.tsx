@@ -6,14 +6,25 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useAppConfig } from "@/hooks/use-library"
 import { checkAppUpdate, installAppUpdate, type AppRelease } from "@/lib/ipc/app-updater"
 import { formatBytes } from "@/lib/utils"
 
-/** Checks GitHub releases on demand; never phones home on app startup. */
+import { SelectSettingRow, type SelectOption } from "./select-setting-row"
+
+const TOGGLE_OPTIONS: readonly SelectOption[] = [
+  { value: "1", label: "On" },
+  { value: "0", label: "Off" },
+]
+
+/** Startup checking is the default; both flags can be changed here or in the dialog. */
 export function AppUpdateCard() {
   const [release, setRelease] = useState<AppRelease | null>(null)
   const [checked, setChecked] = useState(false)
   const [busy, setBusy] = useState(false)
+  const config = useAppConfig()
+  const checkOnStartup = config.data.settings.auto_check_app_updates !== "0"
+  const downloadAutomatically = config.data.settings.auto_download_app_updates !== "0"
 
   const check = async () => {
     setBusy(true)
@@ -60,8 +71,24 @@ export function AppUpdateCard() {
           Publishes AppImage, .deb and .rpm packages for Linux (Fedora uses .rpm).
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3 px-4 py-4">
-        <div className="flex flex-wrap gap-2">
+      <CardContent className="divide-y divide-border/40 px-4 py-2">
+        <div className="space-y-1 py-2">
+          <SelectSettingRow
+            label="Check on startup"
+            hint="Shows the changelog dialog when a newer release exists"
+            value={checkOnStartup ? "1" : "0"}
+            options={TOGGLE_OPTIONS}
+            onChange={(value) => void config.saveSetting("auto_check_app_updates", value)}
+          />
+          <SelectSettingRow
+            label="Automatic downloads"
+            hint="Downloads the installer in the background before the dialog opens"
+            value={downloadAutomatically ? "1" : "0"}
+            options={TOGGLE_OPTIONS}
+            onChange={(value) => void config.saveSetting("auto_download_app_updates", value)}
+          />
+        </div>
+        <div className="flex flex-wrap gap-2 py-3">
           <Button variant="outline" size="sm" disabled={busy} onClick={() => void check()}>
             <RefreshCwIcon />
             Check for updates

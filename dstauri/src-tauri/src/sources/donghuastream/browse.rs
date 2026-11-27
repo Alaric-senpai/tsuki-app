@@ -531,32 +531,32 @@ fn genre_slug(value: &str) -> String {
 }
 
 /// Build the catalog/search URL for a filter combination.
+///
+/// The site's real pagination is a `page` query parameter (its own Next link
+/// uses `?page=2`). `/anime/page/2/` answers 200 but silently serves page 1,
+/// and `/page/2/?s=…` answers 404; search results paginate with `/pagg/N/`.
 pub fn catalog_url(query: &CatalogQuery) -> String {
     let page = query.page.max(1);
     let search = query.search.trim();
     if !search.is_empty() {
         let encoded: String = url::form_urlencoded::byte_serialize(search.as_bytes()).collect();
         if page > 1 {
-            return format!("{DONGHUASTREAM_BASE}/page/{page}/?s={encoded}");
+            return format!("{DONGHUASTREAM_BASE}/pagg/{page}/?s={encoded}");
         }
         return format!("{DONGHUASTREAM_BASE}/?s={encoded}");
     }
 
-    let mut url = if page > 1 {
-        format!(
-            "{DONGHUASTREAM_BASE}/anime/page/{page}/?status={}&type={}&order={}",
-            allowed(&STATUSES, &query.status),
-            allowed(&KINDS, &query.kind),
-            allowed(&ORDERS, &query.order),
-        )
+    let page_param = if page > 1 {
+        format!("page={page}&")
     } else {
-        format!(
-            "{DONGHUASTREAM_BASE}/anime/?status={}&type={}&order={}",
-            allowed(&STATUSES, &query.status),
-            allowed(&KINDS, &query.kind),
-            allowed(&ORDERS, &query.order),
-        )
+        String::new()
     };
+    let mut url = format!(
+        "{DONGHUASTREAM_BASE}/anime/?{page_param}status={}&type={}&order={}",
+        allowed(&STATUSES, &query.status),
+        allowed(&KINDS, &query.kind),
+        allowed(&ORDERS, &query.order),
+    );
     let genre = genre_slug(&query.genre);
     if !genre.is_empty() {
         url.push_str(&format!("&genre%5B%5D={genre}"));
@@ -564,17 +564,21 @@ pub fn catalog_url(query: &CatalogQuery) -> String {
     url
 }
 
-/// Does the page link to a further page of results?
+/// Does this results page actually link to another one?
 ///
-/// WordPress themes mark it either with `rel="next"` or with a `next
-/// page-numbers` class. When neither is present the caller falls back to
-/// "the page was full, so assume there is more".
-fn has_next_page(html: &str) -> bool {
-    static NEXT_RE: OnceLock<Regex> = OnceLock::new();
-    let pattern = NEXT_RE.get_or_init(|| {
-        compiled(r#"(?is)<a[^>]+(?:rel=["']next["']|class=["'][^"']*\bnext page-numbers\b)"#)
-    });
-    pattern.is_match(html)
+/// Both scraped WordPress themes render either a plain `<a …>Next</a>` link
+/// (the archive pages) or a `next page-numbers` anchor. A `<link rel="next">`
+/// in `<head>` is deliberately ignored: DonghuaStream emits it even on an
+/// empty last page. A full card count is *not* pagination — the broken
+/// `/anime/page/N/` URL used to return a full, repeated page with no next link.
+pub(crate) fn has_next_page(html: &str) -> bool {
+    static NEXT_TEXT_RE: OnceLock<Regex> = OnceLock::new();
+    static NEXT_REL_RE: OnceLock<Regex> = OnceLock::new();
+    let text = NEXT_TEXT_RE.get_or_init(|| compiled(r#"(?is)<a\b[^>]*>\s*(?:Next\b|&raquo;|»)"#));
+    let rel = NEXT_REL_RE
+        .get_or_init(|| compiled(r#"(?is)<a\b[^>]*(?:rel=["']next["']|class=["'][^"']*\bnext\b)"#));
+    let html = strip_comments(html);
+    text.is_match(&html) || rel.is_match(&html)
 }
 
 fn empty_page_error(url: &str) -> AppError {
@@ -616,7 +620,10 @@ pub async fn catalog(
     } else {
         "search"
     };
-    let key = format!("{mode}:{url}");
+    let page_number = query.page.max(1);
+    // Include the page in the key as well as the URL: previously cached
+    // pages from the broken `/anime/page/N/` pattern must never be reused.
+    let key = format!("{mode}:{page_number}:{url}");
 
     if !refresh && let Some(hit) = cache::read::<CatalogPage>(NAMESPACE, &key, cache_minutes) {
         let mut page = hit.value;
@@ -627,16 +634,14 @@ pub async fn catalog(
 
     let html = fetch_text(&url).await?;
     let mut cards = parse_cards(&html);
-    let page_number = query.page.max(1);
     // An empty first page means the site layout changed. An empty later page
     // just means the user walked past the end of the list.
     if cards.is_empty() && mode == "catalog" && page_number == 1 {
         return Err(empty_page_error(&url));
     }
-    // Decide `has_more` from the raw card count, before the page is trimmed to
-    // the configured result limit.
-    let raw_count = cards.len();
-    let has_more = has_next_page(&html) || (query.limit > 0 && raw_count >= query.limit);
+    // Only a real Next link means more results. A full page is not evidence:
+    // the old `/anime/page/N/` URL returned a full duplicate of page 1.
+    let has_more = !cards.is_empty() && has_next_page(&html);
     if query.limit > 0 {
         cards.truncate(query.limit);
     }
@@ -781,7 +786,7 @@ mod tests {
         paged.page = 2;
         assert_eq!(
             catalog_url(&paged),
-            "https://donghuastream.org/anime/page/2/?status=ongoing&type=ona&order=popular&genre%5B%5D=martial-arts"
+            "https://donghuastream.org/anime/?page=2&status=ongoing&type=ona&order=popular&genre%5B%5D=martial-arts"
         );
 
         let mut paged_injected = CatalogQuery {
@@ -792,7 +797,7 @@ mod tests {
         paged_injected.page = 4;
         assert_eq!(
             catalog_url(&paged_injected),
-            "https://donghuastream.org/anime/page/4/?status=&type=&order="
+            "https://donghuastream.org/anime/?page=4&status=&type=&order="
         );
     }
 
@@ -806,6 +811,34 @@ mod tests {
             catalog_url(&query),
             "https://donghuastream.org/?s=renegade+immortal"
         );
+        let mut paged = query;
+        paged.page = 3;
+        assert_eq!(
+            catalog_url(&paged),
+            "https://donghuastream.org/pagg/3/?s=renegade+immortal"
+        );
+    }
+
+    #[test]
+    fn live_catalog_pages_have_distinct_results_and_real_next_links() {
+        let page1 = include_str!("../../../tests/fixtures/donghuastream_catalog.html");
+        let page2 = include_str!("../../../tests/fixtures/donghuastream_catalog_page2.html");
+        let first = parse_cards(page1);
+        let second = parse_cards(page2);
+        assert_eq!(first[0].id, "100-000-years-of-refining-qi-yang-ascendant");
+        assert_eq!(second[0].id, "ancient-vengeance");
+        assert!(
+            first
+                .iter()
+                .all(|card| !second.iter().any(|other| other.id == card.id)),
+            "page 2 repeated page 1 cards"
+        );
+        // The captured page-2 archive still links to page 3; the old path-style
+        // URL returned page 1 with no such link.
+        assert!(has_next_page(page2));
+        assert!(!has_next_page(
+            "<html><body><div class=\"pagination\"></div></body></html>"
+        ));
     }
 
     #[test]
