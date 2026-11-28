@@ -78,7 +78,7 @@ pub struct FilterOption {
 }
 
 /// Everything the filter bar needs, scraped from the site's advanced filter.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CatalogFilters {
     pub genres: Vec<Genre>,

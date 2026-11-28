@@ -8,10 +8,16 @@
 //! talks to third-party sites.
 
 pub mod animecube;
+pub mod animecube_live;
 pub mod animekhor;
+pub mod animexin;
 pub mod browse;
 pub mod cache;
 pub mod donghuastream;
+pub mod dongsub;
+pub mod lmanime;
+pub mod luciferdonghua;
+pub mod wowtpix;
 
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -53,10 +59,22 @@ pub fn source_for_url(raw: &str) -> Option<&'static str> {
         .and_then(|url| url.host_str().map(str::to_lowercase))?;
     if media_ids::is_donghuastream_host(&host) {
         Some(donghuastream::SOURCE_KEY)
-    } else if animecube::is_animecube_host(&host) {
-        Some(animecube::SOURCE_KEY)
     } else if animekhor::is_animekhor_host(&host) {
         Some(animekhor::SOURCE_KEY)
+    } else if animecube_live::is_animecube_live_host(&host) {
+        Some(animecube_live::SOURCE_KEY)
+    } else if dongsub::is_dongsub_host(&host) {
+        Some(dongsub::SOURCE_KEY)
+    } else if lmanime::is_lmanime_host(&host) {
+        Some(lmanime::SOURCE_KEY)
+    } else if wowtpix::is_wowtpix_host(&host) {
+        Some(wowtpix::SOURCE_KEY)
+    } else if luciferdonghua::is_luciferdonghua_host(&host) {
+        Some(luciferdonghua::SOURCE_KEY)
+    } else if animexin::is_animexin_host(&host) {
+        Some(animexin::SOURCE_KEY)
+    } else if animecube::is_animecube_host(&host) {
+        Some(animecube::SOURCE_KEY)
     } else {
         None
     }
@@ -92,14 +110,19 @@ pub async fn resolve_for_download(page_url: &str) -> Result<Option<ResolvedMedia
     }
     match source_for_url(page_url) {
         Some(donghuastream::SOURCE_KEY) => Ok(Some(donghuastream::resolve(page_url).await?)),
-        // Keep claiming the host so a raw page URL is never handed to yt-dlp,
-        // but fail before any network call: the live site no longer matches the
-        // ported scraper's playback endpoints.
+        Some(animekhor::SOURCE_KEY) => Ok(Some(animekhor::resolve(page_url).await?)),
+        Some(animecube_live::SOURCE_KEY) => Ok(Some(animecube_live::resolve(page_url).await?)),
+        Some(dongsub::SOURCE_KEY) => Ok(Some(dongsub::resolve(page_url).await?)),
+        Some(lmanime::SOURCE_KEY) => Ok(Some(lmanime::resolve(page_url).await?)),
+        Some(wowtpix::SOURCE_KEY) => Ok(Some(wowtpix::resolve(page_url).await?)),
+        Some(luciferdonghua::SOURCE_KEY) => Ok(Some(luciferdonghua::resolve(page_url).await?)),
+        Some(animexin::SOURCE_KEY) => Ok(Some(animexin::resolve(page_url).await?)),
+        // The retired AnimeCube scraper still owns the host so a raw page is
+        // never handed to yt-dlp; the live replacement is `animecube_live`.
         Some(animecube::SOURCE_KEY) => Err(AppError::source_with(
             "AnimeCube downloads are temporarily unavailable.",
             format!("requested page: {page_url}"),
         )),
-        Some(animekhor::SOURCE_KEY) => Ok(Some(animekhor::resolve(page_url).await?)),
         _ => Ok(None),
     }
 }
@@ -208,15 +231,12 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn animecube_pages_fail_with_a_friendly_error() {
-        let result = resolve_for_download("https://animecube.live/title/s45n2a5c7x").await;
-        let error = match result {
-            Ok(Some(_)) => panic!("a disconnected source must not resolve"),
-            Ok(None) => panic!("an owned but disconnected URL must not reach yt-dlp"),
-            Err(error) => error,
-        };
-        assert!(error.message().contains("temporarily unavailable"));
+    #[test]
+    fn animecube_live_is_now_an_owned_source() {
+        assert_eq!(
+            source_for_url("https://animecube.live/title/s45n2a5c7x"),
+            Some(animecube_live::SOURCE_KEY)
+        );
     }
 
     #[test]

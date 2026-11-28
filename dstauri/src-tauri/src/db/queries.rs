@@ -854,6 +854,39 @@ pub async fn episodes_with_series(
         .map_err(db_error)
 }
 
+/// Pending/failed episodes across the library, capped for background work.
+/// Used by the source-replacement worker; it never touches downloaded rows.
+pub async fn episodes_needing_replacement(
+    pool: &SqlitePool,
+    limit: i64,
+) -> Result<Vec<EpisodeWithSeries>, AppError> {
+    let cap = limit.clamp(1, 1000);
+    let sql = format!(
+        "SELECT {CROSS_LIBRARY_EPISODE_COLUMNS} FROM episodes e \
+         JOIN series s ON s.id = e.series_id \
+         WHERE e.status IN ('not_started', 'failed') \
+         ORDER BY e.id ASC LIMIT {cap}"
+    );
+    sqlx::query_as(&sql).fetch_all(pool).await.map_err(db_error)
+}
+
+/// Point an episode at a replacement page URL (background source repair).
+pub async fn update_episode_source_url(
+    pool: &SqlitePool,
+    id: i64,
+    url: &str,
+    video_id: &str,
+) -> Result<(), AppError> {
+    sqlx::query("UPDATE episodes SET url = ?1, video_id = ?2 WHERE id = ?3")
+        .bind(url)
+        .bind(video_id)
+        .bind(id)
+        .execute(pool)
+        .await
+        .map_err(db_error)?;
+    Ok(())
+}
+
 pub async fn episodes_by_video_ids(
     pool: &SqlitePool,
     video_ids: &[String],

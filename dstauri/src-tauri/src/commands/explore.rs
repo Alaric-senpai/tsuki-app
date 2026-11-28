@@ -13,9 +13,16 @@ use crate::downloader::DownloadSnapshot;
 use crate::error::AppError;
 use crate::media_ids::extract_video_id;
 use crate::sources::animecube;
+use crate::sources::animecube_live;
 use crate::sources::animekhor;
+use crate::sources::animexin;
 use crate::sources::browse::{CatalogFilters, CatalogPage, SourceSeries};
+use crate::sources::donghuastream;
 use crate::sources::donghuastream::browse::{self, CatalogQuery};
+use crate::sources::dongsub;
+use crate::sources::lmanime;
+use crate::sources::luciferdonghua;
+use crate::sources::wowtpix;
 use crate::state::AppState;
 
 use super::downloads::enqueue_episode;
@@ -66,16 +73,46 @@ fn source_infos(youtube_enabled: bool) -> Vec<SourceInfo> {
             note: "Search, genres and trending. No account needed.".to_string(),
         },
         SourceInfo {
-            key: "animecube".to_string(),
+            key: animecube_live::SOURCE_KEY.to_string(),
             label: "AnimeCube".to_string(),
-            available: false,
-            note: "Temporarily disconnected — AnimeCube downloads are unavailable.".to_string(),
+            available: true,
+            note: "Live catalog and downloads. No account needed.".to_string(),
         },
         SourceInfo {
             key: animekhor::SOURCE_KEY.to_string(),
             label: "AnimeKhor".to_string(),
             available: true,
             note: "No account needed.".to_string(),
+        },
+        SourceInfo {
+            key: dongsub::SOURCE_KEY.to_string(),
+            label: "DongSub".to_string(),
+            available: true,
+            note: "Catalog and downloads. No account needed.".to_string(),
+        },
+        SourceInfo {
+            key: lmanime::SOURCE_KEY.to_string(),
+            label: "LMAnime".to_string(),
+            available: true,
+            note: "Catalog and downloads. No account needed.".to_string(),
+        },
+        SourceInfo {
+            key: wowtpix::SOURCE_KEY.to_string(),
+            label: "WowtPix".to_string(),
+            available: true,
+            note: "Catalog and downloads. No account needed.".to_string(),
+        },
+        SourceInfo {
+            key: luciferdonghua::SOURCE_KEY.to_string(),
+            label: "Lucifer Donghua".to_string(),
+            available: true,
+            note: "Also covers Mister Donghua. No account needed.".to_string(),
+        },
+        SourceInfo {
+            key: animexin::SOURCE_KEY.to_string(),
+            label: "AnimeXin".to_string(),
+            available: true,
+            note: "Catalog and downloads. No account needed.".to_string(),
         },
         SourceInfo {
             key: "youtube".to_string(),
@@ -90,17 +127,103 @@ fn source_infos(youtube_enabled: bool) -> Vec<SourceInfo> {
     ]
 }
 
-fn ensure_source(source: &str) -> Result<(), AppError> {
+fn ensure_source(source: &str) -> Result<&str, AppError> {
     let source = source.trim();
-    if source.eq_ignore_ascii_case("donghuastream")
-        || source.eq_ignore_ascii_case(animekhor::SOURCE_KEY)
-    {
-        Ok(())
+    const AVAILABLE: [&str; 8] = [
+        donghuastream::SOURCE_KEY,
+        animekhor::SOURCE_KEY,
+        animecube_live::SOURCE_KEY,
+        dongsub::SOURCE_KEY,
+        lmanime::SOURCE_KEY,
+        wowtpix::SOURCE_KEY,
+        luciferdonghua::SOURCE_KEY,
+        animexin::SOURCE_KEY,
+    ];
+    if AVAILABLE.iter().any(|key| source.eq_ignore_ascii_case(key)) {
+        Ok(source)
     } else {
         Err(AppError::source_with(
             "That source is not available yet.",
             format!("requested source: {source}"),
         ))
+    }
+}
+
+/// One match arm per source; every command that needs a remote series uses it.
+pub(crate) async fn remote_series(
+    source: &str,
+    id: &str,
+    minutes: u32,
+    refresh: bool,
+) -> Result<SourceSeries, AppError> {
+    if source.eq_ignore_ascii_case(animekhor::SOURCE_KEY) {
+        animekhor::series(id, minutes, refresh).await
+    } else if source.eq_ignore_ascii_case(animecube_live::SOURCE_KEY) {
+        animecube_live::series(id, minutes, refresh).await
+    } else if source.eq_ignore_ascii_case(dongsub::SOURCE_KEY) {
+        dongsub::series(id, minutes, refresh).await
+    } else if source.eq_ignore_ascii_case(lmanime::SOURCE_KEY) {
+        lmanime::series(id, minutes, refresh).await
+    } else if source.eq_ignore_ascii_case(wowtpix::SOURCE_KEY) {
+        wowtpix::series(id, minutes, refresh).await
+    } else if source.eq_ignore_ascii_case(luciferdonghua::SOURCE_KEY) {
+        luciferdonghua::series(id, minutes, refresh).await
+    } else if source.eq_ignore_ascii_case(animexin::SOURCE_KEY) {
+        animexin::series(id, minutes, refresh).await
+    } else {
+        browse::series(id, minutes, refresh).await
+    }
+}
+
+async fn remote_catalog(
+    source: &str,
+    query: &CatalogQuery,
+    minutes: u32,
+    refresh: bool,
+) -> Result<CatalogPage, AppError> {
+    if source.eq_ignore_ascii_case(animekhor::SOURCE_KEY) {
+        animekhor::catalog(query, minutes, refresh).await
+    } else if source.eq_ignore_ascii_case(animecube_live::SOURCE_KEY) {
+        animecube_live::catalog(query, minutes, refresh).await
+    } else if source.eq_ignore_ascii_case(dongsub::SOURCE_KEY) {
+        dongsub::catalog(query, minutes, refresh).await
+    } else if source.eq_ignore_ascii_case(lmanime::SOURCE_KEY) {
+        lmanime::catalog(query, minutes, refresh).await
+    } else if source.eq_ignore_ascii_case(wowtpix::SOURCE_KEY) {
+        wowtpix::catalog(query, minutes, refresh).await
+    } else if source.eq_ignore_ascii_case(luciferdonghua::SOURCE_KEY) {
+        luciferdonghua::catalog(query, minutes, refresh).await
+    } else if source.eq_ignore_ascii_case(animexin::SOURCE_KEY) {
+        animexin::catalog(query, minutes, refresh).await
+    } else {
+        browse::catalog(query, minutes, refresh).await
+    }
+}
+
+async fn remote_filters(
+    source: &str,
+    minutes: u32,
+    refresh: bool,
+) -> Result<CatalogFilters, AppError> {
+    if source.eq_ignore_ascii_case(animekhor::SOURCE_KEY) {
+        Err(AppError::source_with(
+            "AnimeKhor filters are read from its catalog page.",
+            source.to_string(),
+        ))
+    } else if source.eq_ignore_ascii_case(animecube_live::SOURCE_KEY) {
+        animecube_live::filters(minutes, refresh).await
+    } else if source.eq_ignore_ascii_case(dongsub::SOURCE_KEY) {
+        dongsub::filters(minutes, refresh).await
+    } else if source.eq_ignore_ascii_case(lmanime::SOURCE_KEY) {
+        lmanime::filters(minutes, refresh).await
+    } else if source.eq_ignore_ascii_case(wowtpix::SOURCE_KEY) {
+        wowtpix::filters(minutes, refresh).await
+    } else if source.eq_ignore_ascii_case(luciferdonghua::SOURCE_KEY) {
+        luciferdonghua::filters(minutes, refresh).await
+    } else if source.eq_ignore_ascii_case(animexin::SOURCE_KEY) {
+        animexin::filters(minutes, refresh).await
+    } else {
+        browse::filters(minutes, refresh).await
     }
 }
 
@@ -112,13 +235,14 @@ pub async fn explore_filters(
     refresh: Option<bool>,
 ) -> Result<CatalogFilters, AppError> {
     ensure_source(&source)?;
+    let source = ensure_source(&source)?;
     let minutes = state.config()?.explore.cache_minutes;
-    if source.trim().eq_ignore_ascii_case(animekhor::SOURCE_KEY) {
+    if source.eq_ignore_ascii_case(animekhor::SOURCE_KEY) {
         animekhor::filters(minutes, refresh.unwrap_or(false)).await
-    } else if source.trim().eq_ignore_ascii_case(animecube::SOURCE_KEY) {
+    } else if source.eq_ignore_ascii_case(animecube::SOURCE_KEY) {
         Ok(animecube::filters())
     } else {
-        browse::filters(minutes, refresh.unwrap_or(false)).await
+        remote_filters(source, minutes, refresh.unwrap_or(false)).await
     }
 }
 
@@ -137,13 +261,14 @@ pub async fn explore_catalog(
     if query.limit == 0 {
         query.limit = explore.result_limit as usize;
     }
-    if source.trim().eq_ignore_ascii_case(animekhor::SOURCE_KEY) {
-        animekhor::catalog(&query, explore.cache_minutes, refresh.unwrap_or(false)).await
-    } else if source.trim().eq_ignore_ascii_case(animecube::SOURCE_KEY) {
-        animecube::catalog(&query, query.limit).await
-    } else {
-        browse::catalog(&query, explore.cache_minutes, refresh.unwrap_or(false)).await
-    }
+    let source = ensure_source(&source)?;
+    remote_catalog(
+        source,
+        &query,
+        explore.cache_minutes,
+        refresh.unwrap_or(false),
+    )
+    .await
 }
 
 /// Full details for one remote series, including its episode list.
@@ -156,13 +281,8 @@ pub async fn explore_series(
 ) -> Result<SourceSeries, AppError> {
     ensure_source(&source)?;
     let minutes = state.config()?.explore.cache_minutes;
-    if source.trim().eq_ignore_ascii_case(animekhor::SOURCE_KEY) {
-        animekhor::series(&id, minutes, refresh.unwrap_or(false)).await
-    } else if source.trim().eq_ignore_ascii_case(animecube::SOURCE_KEY) {
-        animecube::series(&id).await
-    } else {
-        browse::series(&id, minutes, refresh.unwrap_or(false)).await
-    }
+    let source = ensure_source(&source)?;
+    remote_series(source, &id, minutes, refresh.unwrap_or(false)).await
 }
 
 /// Add a remote series to the library, optionally queueing the selected
@@ -185,13 +305,8 @@ pub async fn import_source_series(
 ) -> Result<SourceImportResult, AppError> {
     ensure_source(&source)?;
     let minutes = state.config()?.explore.cache_minutes;
-    let remote = if source.trim().eq_ignore_ascii_case(animekhor::SOURCE_KEY) {
-        animekhor::series(&id, minutes, false).await?
-    } else if source.trim().eq_ignore_ascii_case(animecube::SOURCE_KEY) {
-        animecube::series(&id).await?
-    } else {
-        browse::series(&id, minutes, false).await?
-    };
+    let source = ensure_source(&source)?;
+    let remote = remote_series(source, &id, minutes, false).await?;
 
     let selected: Vec<&crate::sources::browse::SourceEpisode> = if episode_urls.is_empty() {
         remote.episodes.iter().collect()
@@ -242,7 +357,7 @@ pub async fn import_source_series(
                 state.data_dir(),
                 created.id,
                 &remote.thumbnail,
-                &source,
+                source,
             )
             .await
             {
@@ -261,7 +376,7 @@ pub async fn import_source_series(
     };
     // Remember where this entry came from so the Home "Updates" section can
     // re-check the page later.
-    queries::set_series_source(pool, series_id, &source, &remote.url).await?;
+    queries::set_series_source(pool, series_id, source, &remote.url).await?;
     let entries: Vec<EpisodeEntry> = selected
         .iter()
         .map(|episode| EpisodeEntry {
@@ -326,14 +441,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn source_infos_mark_animecube_unavailable() {
+    fn source_infos_offer_the_live_animecube_replacement() {
         let sources = source_infos(true);
         let cube = sources
             .iter()
-            .find(|source| source.key == animecube::SOURCE_KEY)
+            .find(|source| source.key == animecube_live::SOURCE_KEY)
             .expect("animecube entry");
-        assert!(!cube.available);
-        assert!(cube.note.contains("unavailable"));
+        assert!(cube.available);
+        assert!(!cube.note.contains("unavailable"));
     }
 
     #[test]
@@ -348,16 +463,21 @@ mod tests {
     }
 
     #[test]
-    fn animekhor_is_an_allowed_source() {
+    fn all_new_sources_are_allowed() {
         assert!(ensure_source("animekhor").is_ok());
         assert!(ensure_source("donghuastream").is_ok());
-        assert!(ensure_source("animecube").is_err());
+        assert!(ensure_source(animecube_live::SOURCE_KEY).is_ok());
+        assert!(ensure_source(dongsub::SOURCE_KEY).is_ok());
+        assert!(ensure_source(lmanime::SOURCE_KEY).is_ok());
+        assert!(ensure_source(wowtpix::SOURCE_KEY).is_ok());
+        assert!(ensure_source(luciferdonghua::SOURCE_KEY).is_ok());
+        assert!(ensure_source(animexin::SOURCE_KEY).is_ok());
     }
 
     #[test]
-    fn animecube_is_no_longer_an_allowed_source() {
-        assert!(ensure_source("donghuastream").is_ok());
+    fn retired_and_unowned_sources_are_still_rejected() {
         assert!(ensure_source("animecube").is_err());
         assert!(ensure_source("youtube").is_err());
+        assert!(ensure_source("streamplay").is_err());
     }
 }

@@ -1,0 +1,84 @@
+{
+ "success": true,
+ "data": {
+  "anime": {
+   "animeCode": "4p22cq6vyt",
+   "title": "A Record of a Mortal's Journey to Immortality",
+   "coverImage": "https://image.animecube.live/assets/images/donghua/series/4p22cq6vyt/public-assets/483c3531bfc43f5179bf7537bddecf10780fb7f5daf7ff2e3d4015188de28133.jpg",
+   "landscapeImage": "https://image.animecube.live/assets/images/donghua/series/4p22cq6vyt/public-assets/31f628bcdcfd562f121e7eb2231daae9896a3aa724de9a6708b05a85139e8c2c.jpg",
+   "heroImage": "https://image.animecube.live/assets/images/donghua/series/4p22cq6vyt/public-assets/bbba894ec7dd84a47018f1a0d6b921df34431b86aa0ce25fbc6072ed59c81036.jpg",
+   "description": "Han Li, a farm boy of modest talent, enters the Seven Mysteries Sect hoping to ease his family's burden and soon becomes the disciple of the enigmatic Doctor Mo. After surviving his master's deadly scheme and discovering a small green vial, he learns that caution, preparation, and patience may matter more than raw talent in the cultivation world.",
+   "status": "ongoing",
+   "cardKind": "series",
+   "year": 2020,
+   "releaseDate": "2020-07-25",
+   "availableEpisodeCount": 202,
+   "totalEpisodes": 206,
+   "classification": {
+    "schemaVersion": 1,
+    "taxonomyVersion": 1,
+    "world": "xianxia",
+    "themes": [
+     "cultivation"
+    ],
+    "animation": "3d",
+    "settingModifiers": [],
+    "storyGenres": []
+   }
+  },
+  "episodeGroups": [
+   {
+    "label": "Season 1",
+    "episodes": [
+     {
+      "episodeCode": "saccrkx",
+      "number": 1,
+      "title": "Season 1 Episode 1",
+      "numberLabel": "1",
+      "publishedAt": "2025-08-29T18:04:41.099Z"
+     },
+     {
+      "episodeCode": "wc98fs2",
+      "number": 2,
+      "title": "Season 1 Episode 2",
+      "numberLabel": "2",
+      "publishedAt": "2025-08-29T18:04:41.099Z"
+     }
+    ]
+   },
+   {
+    "label": "Season 2",
+    "episodes": [
+     {
+      "episodeCode": "zhm5hbx",
+      "number": 22,
+      "title": "Season 2 Episode 22",
+      "numberLabel": "22",
+      "publishedAt": "2025-08-29T18:04:41.099Z"
+     },
+     {
+      "episodeCode": "zjdt77c",
+      "number": 23,
+      "title": "Season 2 Episode 23",
+      "numberLabel": "23",
+      "publishedAt": "2025-08-29T18:04:41.099Z"
+     }
+    ]
+   }
+  ],
+  "libraryCard": {
+   "id": "4p22cq6vyt",
+   "animeCode": "4p22cq6vyt",
+   "title": "A Record of a Mortal's Journey to Immortality",
+   "coverImage": "https://image.animecube.live/assets/images/donghua/series/4p22cq6vyt/public-assets/483c3531bfc43f5179bf7537bddecf10780fb7f5daf7ff2e3d4015188de28133.jpg",
+   "status": "ongoing",
+   "cardKind": "series",
+   "year": 2020,
+   "availableEpisodeCount": 202,
+   "latestEpisodeDisplay": "202",
+   "primaryWatchEpisodeCode": "saccrkx",
+   "latestWatchEpisodeCode": "ckvqqzn"
+  },
+  "currentEpisodeCode": "ckvqqzn"
+ }
+}

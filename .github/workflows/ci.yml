@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, master, "1.1.2"]
+    branches: [main, master, "1.1.*"]
   pull_request:
-    branches: [main, master, "1.1.2"]
+    branches: [main, master, "1.1.*"]
   workflow_dispatch:
 
 # Only the newest run per branch/PR matters; superseded runs waste runners.
@@ -83,7 +83,7 @@ jobs:
         run: bun run build
 
   # A single required check for branch protection: require "All checks" on
-  # main (and 1.1.2) instead of maintaining a list of per-job names.
+  # main (and the active release branches) instead of maintaining a list of per-job names.
   all-checks:
     name: All checks
     if: always()

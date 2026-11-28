@@ -8,6 +8,7 @@ mod events;
 mod media_ids;
 mod migrate;
 mod network;
+mod replacement;
 mod sources;
 mod state;
 mod youtube;
@@ -238,10 +239,47 @@ pub fn run() {
                 events::network_status(&handle, online);
                 if online {
                     events::network_online(&handle);
-                    if let Some(state) = handle.try_state::<AppState>()
-                        && let Err(error) = commands::downloads::resume_queued(&state).await
-                    {
-                        log::warn!("could not resume the download queue: {}", error.message());
+                    if let Some(state) = handle.try_state::<AppState>() {
+                        if let Err(error) = commands::downloads::resume_queued(&state).await {
+                            log::warn!("could not resume the download queue: {}", error.message());
+                        }
+
+                        // While online, look for working replacement pages for
+                        // pending/failed library episodes. Downloaded rows are
+                        // never touched and YouTube/Streamplay are excluded.
+                        let pool = state.db().pool().clone();
+                        let cache_minutes = state
+                            .config()
+                            .map(|config| config.explore.cache_minutes)
+                            .unwrap_or(20);
+                        match replacement::run_repair(&pool, |source, id| {
+                            let source = source.to_string();
+                            let id = id.to_string();
+                            async move {
+                                commands::explore::remote_series(
+                                    &source,
+                                    &id,
+                                    cache_minutes,
+                                    false,
+                                )
+                                .await
+                            }
+                        })
+                        .await
+                        {
+                            Ok(report) => {
+                                if report.replaced > 0 {
+                                    log::info!(
+                                        "replacement worker updated {} episode link(s)",
+                                        report.replaced
+                                    );
+                                }
+                                events::replacement_complete(&handle, &report);
+                            }
+                            Err(error) => {
+                                log::warn!("replacement worker failed: {}", error.message());
+                            }
+                        }
                     }
                 } else {
                     log::warn!(
