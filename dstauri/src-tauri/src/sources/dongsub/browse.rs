@@ -244,47 +244,6 @@ pub fn parse_label(html: &str) -> String {
         .unwrap_or_default()
 }
 
-/// Episodes from a Blogger label page's static post list (fallback parser).
-pub fn parse_episodes_html(html: &str) -> Vec<SourceEpisode> {
-    let Some(article) = re(r#"(?is)<article\s+class=['"]post['"][^>]*>.*?</article>"#) else {
-        return Vec::new();
-    };
-    let Some(link) = re(
-        r#"(?is)<h3\s+class=['\"]post-title['\"][^>]*>\s*<a\s+href=['"]([^'"]+)['"][^>]*>(.*?)</a>"#,
-    ) else {
-        return Vec::new();
-    };
-    let Some(date) = re(r#"(?is)<time[^>]*datetime=['"]([^'"]+)['"]"#) else {
-        return Vec::new();
-    };
-    let mut episodes = Vec::new();
-    let mut seen = HashSet::new();
-    for found in article.captures_iter(html) {
-        let block = &found[0];
-        let Some(caps) = link.captures(block) else {
-            continue;
-        };
-        let url = post_url(&caps[1]);
-        if !seen.insert(url.clone()) {
-            continue;
-        }
-        let title = text_of(&caps[2]);
-        let (number_text, number) = episode_number(&title);
-        let published = date
-            .captures(block)
-            .map(|found| found[1].to_string())
-            .unwrap_or_default();
-        episodes.push(SourceEpisode {
-            url,
-            title,
-            episode_number: number,
-            number_text,
-            date: published,
-        });
-    }
-    episodes
-}
-
 /// Episodes from Blogger's JSON feed. The HTML label page only shows the most
 /// recent posts, the feed returns the whole series with `start-index` paging.
 pub fn parse_feed_entries(feed: &Value) -> Vec<SourceEpisode> {
@@ -360,13 +319,10 @@ pub fn parse_series(html: &str, page_url: &str) -> Option<SourceSeries> {
                 .unwrap_or_else(|| html.to_string())
         })
         .unwrap_or_else(|| html.to_string());
-    let thumbnail = {
-        let pattern = format!(r#"(?is)<img\b[^>]*\bsrc=['"]([^'"]+)['"]"#);
-        re(&pattern)
-            .and_then(|compiled| compiled.captures(&body))
-            .map(|caps| decode_entities(&caps[1]))
-            .unwrap_or_default()
-    };
+    let thumbnail = re(r#"(?is)<img\b[^>]*\bsrc=['"]([^'"]+)['"]"#)
+        .and_then(|compiled| compiled.captures(&body))
+        .map(|caps| decode_entities(&caps[1]))
+        .unwrap_or_default();
     let description = first_text(
         r#"(?is)<div\s+class=['"]sinoposis['"][^>]*>(.*?)</div>"#,
         &body,

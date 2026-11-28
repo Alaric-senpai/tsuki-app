@@ -52,17 +52,14 @@ fn decode_entities(input: &str) -> String {
 /// `dailymotion.com/video/<id>` all become one canonical, yt-dlp-friendly URL.
 pub fn dailymotion_direct(raw: &str) -> Option<(String, String)> {
     let trimmed = raw.trim();
-    let Some(video) = re(r#"(?i)[?&]video=([0-9A-Za-z]+)"#)
+    let video = re(r#"(?i)[?&]video=([0-9A-Za-z]+)"#)
         .and_then(|regex| regex.captures(trimmed))
         .map(|caps| caps[1].to_string())
         .or_else(|| {
             re(r"(?i)(?:dailymotion\.com/(?:embed/)?video/|dai\.ly/)([0-9A-Za-z]+)")
                 .and_then(|regex| regex.captures(trimmed))
                 .map(|caps| caps[1].to_string())
-        })
-    else {
-        return None;
-    };
+        })?;
     if !trimmed.to_ascii_lowercase().contains("dailymotion")
         && !trimmed.to_ascii_lowercase().contains("dai.ly")
     {

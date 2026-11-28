@@ -100,10 +100,9 @@ fn slug_from_url(url: &str) -> String {
     if let Some(position) = segments
         .iter()
         .position(|part| part.eq_ignore_ascii_case("anime"))
+        && let Some(slug) = segments.get(position + 1)
     {
-        if let Some(slug) = segments.get(position + 1) {
-            return (*slug).to_string();
-        }
+        return (*slug).to_string();
     }
     segments
         .last()

@@ -14,7 +14,6 @@ pub use resolver::resolve;
 
 pub const SOURCE_KEY: &str = "luciferdonghua";
 pub const BASE: &str = "https://luciferdonghua.in";
-pub const MISTER_BASE: &str = "https://misterdonghua.com";
 
 /// Both apex domains, their `www` subdomains and any further subdomains.
 pub fn is_luciferdonghua_host(host: &str) -> bool {

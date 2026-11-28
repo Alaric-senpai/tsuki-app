@@ -135,23 +135,6 @@ where
     Ok(report)
 }
 
-/// Convenience wrapper used by pure tests: pick the best page for an episode
-/// by number, preferring a URL that differs from the stored one.
-pub fn candidate_for<'a>(
-    episodes: &'a [crate::sources::browse::SourceEpisode],
-    stored_url: &str,
-    number: i64,
-) -> Option<&'a str> {
-    episodes
-        .iter()
-        .find(|episode| {
-            episode.episode_number == Some(number)
-                && episode.url != stored_url
-                && allowed_url(&episode.url)
-        })
-        .map(|episode| episode.url.as_str())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

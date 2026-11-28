@@ -357,7 +357,7 @@ pub async fn import_source_series(
                 state.data_dir(),
                 created.id,
                 &remote.thumbnail,
-                &source,
+                source,
             )
             .await
             {
@@ -376,7 +376,7 @@ pub async fn import_source_series(
     };
     // Remember where this entry came from so the Home "Updates" section can
     // re-check the page later.
-    queries::set_series_source(pool, series_id, &source, &remote.url).await?;
+    queries::set_series_source(pool, series_id, source, &remote.url).await?;
     let entries: Vec<EpisodeEntry> = selected
         .iter()
         .map(|episode| EpisodeEntry {

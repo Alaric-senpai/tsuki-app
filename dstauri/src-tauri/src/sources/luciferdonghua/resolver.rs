@@ -331,9 +331,7 @@ mod tests {
 
     #[test]
     fn a_page_without_a_player_fails_with_a_copyable_error() {
-        let error = resolved_from_html("<html><body>no video</body></html>", PAGE)
-            .err()
-            .expect("missing player");
+        let error = resolved_from_html("<html><body>no video</body></html>", PAGE).unwrap_err();
         assert!(error.message().contains("did not expose a playable video"));
         assert_eq!(error.detail(), PAGE);
     }
