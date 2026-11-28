@@ -17,6 +17,7 @@ use crate::sources::animecube_live;
 use crate::sources::animekhor;
 use crate::sources::animexin;
 use crate::sources::browse::{CatalogFilters, CatalogPage, SourceSeries};
+use crate::sources::donghuastream;
 use crate::sources::donghuastream::browse::{self, CatalogQuery};
 use crate::sources::dongsub;
 use crate::sources::lmanime;

@@ -861,15 +861,13 @@ pub async fn episodes_needing_replacement(
     limit: i64,
 ) -> Result<Vec<EpisodeWithSeries>, AppError> {
     let cap = limit.clamp(1, 1000);
-    sqlx::query_as(format!(
+    let sql = format!(
         "SELECT {CROSS_LIBRARY_EPISODE_COLUMNS} FROM episodes e \
          JOIN series s ON s.id = e.series_id \
          WHERE e.status IN ('not_started', 'failed') \
          ORDER BY e.id ASC LIMIT {cap}"
-    ))
-    .fetch_all(pool)
-    .await
-    .map_err(db_error)
+    );
+    sqlx::query_as(&sql).fetch_all(pool).await.map_err(db_error)
 }
 
 /// Point an episode at a replacement page URL (background source repair).
