@@ -1,0 +1,480 @@
+{
+ "success": true,
+ "data": {
+  "scope": "public",
+  "releaseId": "rel_1795837147996_cf17aced0dab",
+  "checkedAt": 1795851200242,
+  "unchanged": false,
+  "items": [
+   {
+    "id": "2jrf22qsfz",
+    "animeCode": "2jrf22qsfz",
+    "title": "Renegade Immortal Movie: Slaying the Immortal",
+    "coverImage": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/be63e5cb08ce6e217284a24e8aa82aac193b10f315433f5aa478dd51c18ed08b.jpg",
+    "coverAsset": {
+     "fallbackUrl": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/be63e5cb08ce6e217284a24e8aa82aac193b10f315433f5aa478dd51c18ed08b.jpg",
+     "variants": [
+      {
+       "format": "avif",
+       "width": 240,
+       "height": 336,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/439dfa84098fa37450fbeddc815d8c3e3e7c3df15662266457d03a930dd214b2.avif"
+      },
+      {
+       "format": "webp",
+       "width": 240,
+       "height": 336,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/0ed57937b05d629b323c32fd4586f429c4de29d4cf5b5a8badb43fa9cf2b2d91.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 240,
+       "height": 336,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/be63e5cb08ce6e217284a24e8aa82aac193b10f315433f5aa478dd51c18ed08b.jpg"
+      },
+      {
+       "format": "avif",
+       "width": 360,
+       "height": 505,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/d93da32269c55d6cbf877c37e3f58e427a01a2a05e35c4cb83765cc77e8a9bf4.avif"
+      },
+      {
+       "format": "webp",
+       "width": 360,
+       "height": 505,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/00cfc91abf06f04a5b6f0aed749b057d60e36d4fba9b376a773ffb47e5288697.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 360,
+       "height": 505,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/4f4c0cca5508cc2e1cbdc66dcdf4dc530e784c8f3cff6314bc1ad1ee61eb7a3a.jpg"
+      },
+      {
+       "format": "avif",
+       "width": 480,
+       "height": 673,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/0af1d468fb9ede27c556aa109f354430d7baaf33fcb005f348fe2d60c050dda5.avif"
+      },
+      {
+       "format": "webp",
+       "width": 480,
+       "height": 673,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/6bbfe52d2c964f528e5bcd2ca08db403cff4ff635deca1065f86905a2e14ef9d.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 480,
+       "height": 673,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/0a5c444644ff610fba4bd2082f329a5a3e8638df18af5613a6bcdeaa241c1a19.jpg"
+      },
+      {
+       "format": "avif",
+       "width": 640,
+       "height": 897,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/a5e4e72f519f533d8702ffbce75eae961507974a668064a216b95afe5e60b191.avif"
+      },
+      {
+       "format": "webp",
+       "width": 640,
+       "height": 897,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/f6af96118f30b5dfd17779d7955a58f1639f9197518072a4740ec38632ed4c0e.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 640,
+       "height": 897,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/7bdb800e5b12365d6153a156939a98b4914cab9d310b1934b4ee712ad4fb4605.jpg"
+      },
+      {
+       "format": "avif",
+       "width": 960,
+       "height": 1346,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/a7c48c444f681ecf2da710c8613cc3b8e8c928236f82a2595af7981d19b8b925.avif"
+      },
+      {
+       "format": "webp",
+       "width": 960,
+       "height": 1346,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/bd513de036ef35b1a27c9f6377f6dc4f83983ccf619edfa871fcf347263e0358.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 960,
+       "height": 1346,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/759c7360984c56bb325388b44c3feb34b509a3a7373c984aa927be9c4f405adc.jpg"
+      }
+     ]
+    },
+    "landscapeImage": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/38a5df7ae16bae41fbe4eecfc289e05c5e23c5d09e6fe5786b36dbef477cf707.jpg",
+    "landscapeAsset": {
+     "fallbackUrl": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/38a5df7ae16bae41fbe4eecfc289e05c5e23c5d09e6fe5786b36dbef477cf707.jpg",
+     "variants": [
+      {
+       "format": "avif",
+       "width": 240,
+       "height": 136,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/65458e4675b961540b7f559b4abfc3b3f16b538e8f41755f6a7245a0a8bae3d2.avif"
+      },
+      {
+       "format": "webp",
+       "width": 240,
+       "height": 136,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/1bf2c6ff0210963db36852bfd4e53d4e92087903bce3cefdcd737629fad7d4dc.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 240,
+       "height": 136,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/38a5df7ae16bae41fbe4eecfc289e05c5e23c5d09e6fe5786b36dbef477cf707.jpg"
+      },
+      {
+       "format": "avif",
+       "width": 360,
+       "height": 204,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/89fdc317e12ebe9783a27030fa8b3679baa69b03793c47a531d644daa41a81b9.avif"
+      },
+      {
+       "format": "webp",
+       "width": 360,
+       "height": 204,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/0664f9c9eabbfe5c46a37cc8c99ec3755dd4a0dd802d75c49e8dac5b43788c97.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 360,
+       "height": 204,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/351b0e70fe1fe242ca9ddda139c1ac1542064a356229a61184e7d9243afdb397.jpg"
+      },
+      {
+       "format": "avif",
+       "width": 480,
+       "height": 272,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/6c897ff799b8ceb2bdb454b0215d6d4751a4f47218f21f6300e88ee7eac4f4b6.avif"
+      },
+      {
+       "format": "webp",
+       "width": 480,
+       "height": 272,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/87bf4c10bea014fd12b8680ae5afe009acdab54e17b8c866f28a13e9adca0b7b.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 480,
+       "height": 272,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/f8eccd2d46adeda591cd2f113e4fd3339b7a65f17cfadc5a0afde12f0af13cbf.jpg"
+      },
+      {
+       "format": "avif",
+       "width": 640,
+       "height": 362,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/84833b78c49ea0aac11445fa3c6512056e08770f1bde4bdb8be00f8893d968a0.avif"
+      },
+      {
+       "format": "webp",
+       "width": 640,
+       "height": 362,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/1fa616794a117379c8e1eedf63d638ae7cde71d4de5ad250cc953ff893b34cd8.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 640,
+       "height": 362,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/b18fee79f70ca47f3b88f824de20e6f1dabc07b9e295343fd3fa75206b67e3f0.jpg"
+      },
+      {
+       "format": "avif",
+       "width": 960,
+       "height": 543,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/a31a783d0a4c3873e03fe57ed2ade560af01ce9162f6daa83eb69cbba0771668.avif"
+      },
+      {
+       "format": "webp",
+       "width": 960,
+       "height": 543,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/4372e042ae545f07745bfcd04f02f8aa9f6b6d6fbf46d8a80da83ac3368859a3.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 960,
+       "height": 543,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/e1e40520471496670a16fd9f8e89bc7069ca7dedd16e22dab79d3e89c18748d7.jpg"
+      },
+      {
+       "format": "avif",
+       "width": 1440,
+       "height": 815,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/61ea1990c78cff2b05c8db14d785a4e1bc884f5e8a735d467cd82b79d907ca3b.avif"
+      },
+      {
+       "format": "webp",
+       "width": 1440,
+       "height": 815,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/8e3f6a06d6dfa5a632a6081362e9e055e8ca020cdda8f3646bd1ee53d442acb0.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 1440,
+       "height": 815,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/6eb85e9a2d5d5ea45dc463e5ad670153f1bf5c2fb426f8d75488b64c66f1f7a5.jpg"
+      },
+      {
+       "format": "avif",
+       "width": 1920,
+       "height": 1087,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/77a1a531e64876f8a985ef8a96b3344a05529cfd7abd380624a511ebe37785eb.avif"
+      },
+      {
+       "format": "webp",
+       "width": 1920,
+       "height": 1087,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/706d6bc1b5de1ea8a5500335cc904efd41b686db8a00a0af8c60b5d3de521bcb.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 1920,
+       "height": 1087,
+       "url": "https://image.animecube.live/assets/images/donghua/series/2jrf22qsfz/public-assets/f98813ab126ec726bfa8412b5ddc6d3198ee47fae1fb87bac9a29042011ee60f.jpg"
+      }
+     ]
+    },
+    "classification": {
+     "schemaVersion": 1,
+     "taxonomyVersion": 1,
+     "world": "xianxia",
+     "themes": [
+      "cultivation",
+      "survival"
+     ],
+     "animation": "3d",
+     "settingModifiers": [],
+     "storyGenres": []
+    },
+    "status": "ongoing",
+    "cardKind": "series",
+    "libraryCompleteness": "full",
+    "year": 2026,
+    "availableEpisodeCount": 1,
+    "mediaType": "series",
+    "primaryWatchEpisodeCode": "3p84znt",
+    "latestWatchEpisodeCode": "3p84znt"
+   },
+   {
+    "id": "s45n2a5c7x",
+    "animeCode": "s45n2a5c7x",
+    "title": "Renegade Immortal",
+    "coverImage": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/fe7f4bcfe6f5b0098348668b3ba4b37bbfce06957cdfed249fc1111fec218467.jpg",
+    "coverAsset": {
+     "fallbackUrl": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/fe7f4bcfe6f5b0098348668b3ba4b37bbfce06957cdfed249fc1111fec218467.jpg",
+     "variants": [
+      {
+       "format": "avif",
+       "width": 240,
+       "height": 427,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/7146099d1b4a68b5378800c7d714edd9d9e6eae6c9183ef72419d78e20caca33.avif"
+      },
+      {
+       "format": "webp",
+       "width": 240,
+       "height": 427,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/e8388b4392f477e47ded5a31d39625c357d56549cf753cec293c0dde6a8ed8ac.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 240,
+       "height": 427,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/fe7f4bcfe6f5b0098348668b3ba4b37bbfce06957cdfed249fc1111fec218467.jpg"
+      },
+      {
+       "format": "avif",
+       "width": 360,
+       "height": 640,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/1eca32f17aea2ca36a497c9f0889054d389c731c80cb69d0a33571264d4e6a14.avif"
+      },
+      {
+       "format": "webp",
+       "width": 360,
+       "height": 640,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/960f1d273973d3c08a6d74f53c94bf3a0cdf7165fd1e030c7b95b61f6bfacebc.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 360,
+       "height": 640,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/ac53d27adfbbd58350e93cf650780b8481994be61b98cae341f6b5c870ab2084.jpg"
+      },
+      {
+       "format": "avif",
+       "width": 480,
+       "height": 853,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/205867f7faa223498597699d137109284b950e090457a3c8b14da72816889c92.avif"
+      },
+      {
+       "format": "webp",
+       "width": 480,
+       "height": 853,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/7b470cc753d3c3d4fb4c0d264520ff5d8970892a344767e76ca5a7f65fe470da.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 480,
+       "height": 853,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/156ca3846031140d67f1ae5482eae467a8409934c2e8273c8ffa03251571440a.jpg"
+      },
+      {
+       "format": "avif",
+       "width": 540,
+       "height": 960,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/b03d89ac9dde2761eee7fb29d10d3411254c4e27c5d75d9e1fe3647625b153be.avif"
+      },
+      {
+       "format": "webp",
+       "width": 540,
+       "height": 960,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/09a72b40c9bec3683e3bde8309754d35fb1a146d699dc3f005bc588cc736282a.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 540,
+       "height": 960,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/34bd2e2657f0cffa2fe9daee7d04b95191e4fc6aced90a13cb9e02e4c70af4a6.jpg"
+      }
+     ]
+    },
+    "landscapeImage": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/291839bf61c5b8c037cc60198a312381280bdf9d23c416c15beadfb124694565.jpg",
+    "landscapeAsset": {
+     "fallbackUrl": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/291839bf61c5b8c037cc60198a312381280bdf9d23c416c15beadfb124694565.jpg",
+     "variants": [
+      {
+       "format": "avif",
+       "width": 240,
+       "height": 135,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/d0ad3b9ff07c2289da78ffe0c14ca66ef49db5f2506492f0dd67654c2ca9c701.avif"
+      },
+      {
+       "format": "webp",
+       "width": 240,
+       "height": 135,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/9040c611151246e597f820dc6eebad1050e99d3c8f24612e59d80b837b5ed0b4.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 240,
+       "height": 135,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/291839bf61c5b8c037cc60198a312381280bdf9d23c416c15beadfb124694565.jpg"
+      },
+      {
+       "format": "avif",
+       "width": 360,
+       "height": 203,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/d54500076113ac76635f4461d1f44918bdb2fff6414aadc3f330380a595b804e.avif"
+      },
+      {
+       "format": "webp",
+       "width": 360,
+       "height": 203,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/b0eef5c547597c73e3267731d4fb1d67884cb63262e39adfbecdaa809b92a0bb.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 360,
+       "height": 203,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/b5e03298238801cabaf2479c80823d4dfe809d8a72070ab971029a49d6f7e66f.jpg"
+      },
+      {
+       "format": "avif",
+       "width": 480,
+       "height": 270,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/464b825eff1e5b347a4bc6e8e78f563e3eec9fe091e2e4248a6a5bcced175286.avif"
+      },
+      {
+       "format": "webp",
+       "width": 480,
+       "height": 270,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/403b1fc7028b0a8617046eddcb9826707e7c610d56fe77ee44aad2818980da07.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 480,
+       "height": 270,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/75e9bd13b3b5d39fb9e7d21d7a2d7baa5a67576a697c9eb6a63117670d758665.jpg"
+      },
+      {
+       "format": "avif",
+       "width": 640,
+       "height": 360,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/6914904e9f066c55c5a1d6ee7148c225a1487701b1225bfe9967c8902bcd9bbb.avif"
+      },
+      {
+       "format": "webp",
+       "width": 640,
+       "height": 360,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/cfaa6cfadf3fe34b192694752423fd3b91fbbed0c6a23bdde37649005f4823d8.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 640,
+       "height": 360,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/30c419881277d13575ebc0a7ec0c9e308c5d6261aaee74ef76371453762b0485.jpg"
+      },
+      {
+       "format": "avif",
+       "width": 960,
+       "height": 540,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/e5a894903ed19072588e31f1600f83ec5a7c219f83fb3f1d5c1ff7cb7bcbe604.avif"
+      },
+      {
+       "format": "webp",
+       "width": 960,
+       "height": 540,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/7d2438feed571b922a6ee0cd70c0ecc3f7182157a61de53a8c2c3fe902c907d3.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 960,
+       "height": 540,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/b1c8b69c7799cc75a3c1c5c58d64e2737f8888abb66ae4e875e9b3548da29dd0.jpg"
+      },
+      {
+       "format": "avif",
+       "width": 1280,
+       "height": 720,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/bcee5453498f97c5009c2d994fc5ac1a2d9ec3b9d34b6cdff5469c34cad8b38c.avif"
+      },
+      {
+       "format": "webp",
+       "width": 1280,
+       "height": 720,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/89f0476fe66f10ac285b19a305f10bc9d7d230400fd2f0579bb62a0413fba8c9.webp"
+      },
+      {
+       "format": "jpg",
+       "width": 1280,
+       "height": 720,
+       "url": "https://image.animecube.live/assets/images/donghua/series/s45n2a5c7x/public-assets/7500af77805ba24a1d349f96af44475644d639978e166683c103c73b3216a397.jpg"
+      }
+     ]
+    },
+    "classification": {
+     "schemaVersion": 1,
+     "taxonomyVersion": 1,
+     "world": "xianxia",
+     "themes": [
+      "cultivation"
+     ],
+     "animation": "3d",
+     "settingModifiers": [],
+     "storyGenres": []
+    },
+    "status": "ongoing",
+    "cardKind": "series",
+    "libraryCompleteness": "partial",
+    "year": 2023,
+    "availableEpisodeCount": 62,
+    "mediaType": "series",
+    "primaryWatchEpisodeCode": "kkmeusy",
+    "latestWatchEpisodeCode": "ndzekw2"
+   }
+  ]
+ }
+}
