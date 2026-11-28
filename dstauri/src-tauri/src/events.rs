@@ -51,3 +51,13 @@ pub fn network_offline(app: &AppHandle) {
 pub fn network_online(app: &AppHandle) {
     network_event(app, NETWORK_ONLINE, true);
 }
+
+/// Emitted after a background source-replacement pass. Carries a
+/// `replacement::RepairReport` payload.
+pub const REPLACEMENT_COMPLETE: &str = "replacement://complete";
+
+pub fn replacement_complete(app: &AppHandle, report: &impl Serialize) {
+    if let Err(error) = app.emit(REPLACEMENT_COMPLETE, report) {
+        log::warn!("could not emit {REPLACEMENT_COMPLETE}: {error}");
+    }
+}
