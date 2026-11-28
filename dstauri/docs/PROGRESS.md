@@ -54,6 +54,30 @@ Branch `1.1.2`. `main` is production-only and is now protected (PR + 1 approval 
 
 ---
 
+## Current session — 1.1.3 source expansion (release candidate)
+
+**Status:** all 1.1.3 deliverables are implemented on branch `1.1.3`; gates are delegated to GitHub CI per the user's direction (local machine lacks the resources). Release is gated on `All checks` passing for the tag commit.
+
+### Done
+- Bumped 1.1.2 → 1.1.3 in `package.json`, `tauri.conf.json`, `Cargo.toml`/`Cargo.lock`, sidebar and About dialog.
+- `CHANGELOG.md` has a dated `1.1.3 — 2026-11-28` section; `ci.yml` triggers on pushes and PRs to `1.1.3` as well as main and 1.1.2.
+- `sources/mod.rs` declares `animecube_live`, `animexin`, `dongsub`, `luciferdonghua`, `lmanime` and `wowtpix`; host detection and `resolve_for_download` dispatch them. The retired `animecube` key still fails with a friendly error.
+- Each new source has pure regex/JSON parsers, resolver, fixture-backed tests, and Explore dispatch for `series`, `catalog` and `filters` (`remote_filters` is async and awaits the site-derived filter parsers).
+- `db/queries.rs` gained `episodes_needing_replacement` and `update_episode_source_url`. `replacement.rs` matches pending/failed episodes by number against the series' current remote page, verifies candidates with `resolve_for_download`, and only writes allowlisted, non-Streamplay URLs. It runs once at startup while online and emits `replacement://complete`; downloaded rows are never touched.
+- Root `AGENTS.md` §14 records the 1.1.3 source decision and defers the unified streaming resolver to 1.1.4.
+- Research notes: `dstauri/docs/decisions/streaming-1.1.4.md`, `dstauri/docs/decisions/unified-registry.md`, `reports/1.1.3-sources-a.md`.
+
+### Verification / release path
+- Local heavy gates are intentionally skipped; GitHub `ci.yml` runs fmt/clippy/test and frontend typecheck/test/lint/build on the pushed branch and produces the single `All checks` aggregate.
+- After `All checks` passes on `1.1.3`, open the PR to `main` (branch protection requires one approval and `All checks`). Tag the exact release commit `v1.1.3`; `release.yml` re-verifies `All checks` for that SHA before publishing Windows NSIS + Linux AppImage/deb/rpm as a draft.
+
+### Known issues / open questions
+- Streaming research is design-only; no playback changes ship in 1.1.3.
+- Streamplay remains unsupported; the background worker replaces links only when another allowlisted source offers the same episode.
+- The universal resolver and unified registry are 1.1.4 work.
+
+---
+
 ## Current session — packaging hotfix (v1.1.1-hotfix)
 
 - Fedora RPM install failed: bundled `externalBin` files landed at `/usr/bin/yt-dlp` and
